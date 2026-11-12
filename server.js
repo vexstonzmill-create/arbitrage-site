@@ -38,14 +38,16 @@ function connectBinance() {
 
     ws.on('open', () => console.log('🟢 Подключено к Binance'));
     ws.on('message', (data) => {
-        const msg = JSON.parse(data).data;
-        if (!msg || !msg.s) return;
-        
-        const symbol = msg.s.replace('USDT', '/USDT');
-        if (prices[symbol]) {
-            prices[symbol].binance.bid = parseFloat(msg.b);
-            prices[symbol].binance.ask = parseFloat(msg.a);
-        }
+        try {
+            const msg = JSON.parse(data).data;
+            if (!msg || !msg.s) return;
+            
+            const symbol = msg.s.replace('USDT', '/USDT');
+            if (prices[symbol]) {
+                prices[symbol].binance.bid = parseFloat(msg.b);
+                prices[symbol].binance.ask = parseFloat(msg.a);
+            }
+        } catch (e) {}
     });
     ws.on('close', () => { 
         console.log('🔴 Binance отключен. Реконнект...'); 
@@ -65,20 +67,22 @@ function connectBybit() {
     });
     
     ws.on('message', (data) => {
-        const msg = JSON.parse(data);
-        
-        if (msg.op === 'ping') {
-            ws.send(JSON.stringify({ op: 'pong' }));
-            return;
-        }
-
-        if (msg.data && msg.topic && msg.data.b && msg.data.a) {
-            const symbol = msg.data.s.replace('USDT', '/USDT');
-            if (prices[symbol]) {
-                prices[symbol].bybit.bid = parseFloat(msg.data.b[0][0]);
-                prices[symbol].bybit.ask = parseFloat(msg.data.a[0][0]);
+        try {
+            const msg = JSON.parse(data);
+            
+            if (msg.op === 'ping') {
+                ws.send(JSON.stringify({ op: 'pong' }));
+                return;
             }
-        }
+
+            if (msg.data && msg.topic && msg.data.b && msg.data.a) {
+                const symbol = msg.data.s.replace('USDT', '/USDT');
+                if (prices[symbol]) {
+                    prices[symbol].bybit.bid = parseFloat(msg.data.b[0][0]);
+                    prices[symbol].bybit.ask = parseFloat(msg.data.a[0][0]);
+                }
+            }
+        } catch (e) {}
     });
     ws.on('close', () => { 
         console.log('🔴 Bybit отключен. Реконнект...'); 
@@ -132,12 +136,7 @@ connectBybit();
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`🚀 Сервер работает на порту ${PORT}`);
-});       }
-    }
-
-    // Отправляем данные на фронтенд каждую секунду
-    if (results.length > 0) {
-        io.emit('arbitrageData', results);
+});trageData', results);
     }
 }, 1000);
 
