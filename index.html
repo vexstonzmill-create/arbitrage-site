@@ -2,13 +2,13 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Arbitrage | Premium UI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Crypto Arbitrage | App UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #030611; color: white; overflow-x: hidden; min-height: 100vh; }
+        body { font-family: 'Inter', sans-serif; background-color: #030611; color: white; min-height: 100vh; margin: 0; padding-bottom: 80px; }
         
         .aurora-bg {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -31,169 +31,220 @@
             box-shadow: 0 4px 15px rgba(0, 82, 255, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.3);
             transition: all 0.2s ease;
         }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 82, 255, 0.6); }
-
-        .table-row { transition: all 0.2s; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .table-row:hover { background: rgba(255,255,255,0.05); }
         
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(10, 17, 40, 0.8);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-around;
+            padding: 12px 0; z-index: 40;
+        }
+
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center;
+            color: #6B7280; font-size: 11px; font-weight: 500; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-item.active { color: #3b82f6; }
+        .nav-item svg { width: 24px; height: 24px; margin-bottom: 4px; }
+
         input { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; }
-        input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+        input:focus { outline: none; border-color: #3b82f6; }
         
         .text-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+        
+        /* Скрываем скроллбар для мобилок */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
-<body class="p-4 md:p-8 flex justify-center">
+<body class="flex flex-col items-center">
+
     <div class="aurora-bg"></div>
 
     <!-- AUTH MODAL -->
-    <div id="auth-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-        <div class="glass-panel p-8 w-full max-w-md">
-            <h2 class="text-2xl font-bold mb-6 text-center">Вход в систему</h2>
+    <div id="auth-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel p-6 w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-6 text-center">Вход</h2>
             <form id="auth-form" class="space-y-4">
                 <div>
-                    <label class="text-sm text-gray-400">Email</label>
-                    <input type="email" id="email" required class="w-full p-3 rounded-xl mt-1">
+                    <label class="text-xs text-gray-400">Email</label>
+                    <input type="email" id="email" required class="w-full p-3 rounded-xl mt-1 text-sm">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Пароль</label>
-                    <input type="password" id="password" required class="w-full p-3 rounded-xl mt-1">
+                    <label class="text-xs text-gray-400">Пароль</label>
+                    <input type="password" id="password" required class="w-full p-3 rounded-xl mt-1 text-sm">
                 </div>
-                <button type="submit" class="w-full btn-primary text-white font-bold py-3 rounded-xl mt-2">Войти / Регистрация</button>
-                <p class="text-xs text-center text-gray-500 mt-4">Тестовый аккаунт: test@test.com / 123456 (VIP)</p>
+                <button type="submit" class="w-full btn-primary text-white font-bold py-3 rounded-xl mt-2 text-sm">Войти / Регистрация</button>
+                <p class="text-[10px] text-center text-gray-500 mt-4">Тест: test@test.com / 123456 (VIP)</p>
                 <p id="auth-error" class="text-red-400 text-xs text-center hidden"></p>
             </form>
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
-    <div class="w-full max-w-5xl">
+    <!-- WRAPPER -->
+    <div class="w-full max-w-2xl px-4 pt-6 pb-20">
+        
         <!-- HEADER -->
-        <header class="flex justify-between items-center mb-8">
+        <header class="flex justify-between items-start mb-6">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight">Arbitrage<span class="text-blue-500">Scanner</span></h1>
-                <p class="text-gray-400 text-sm mt-1">Лучшие связки в реальном времени</p>
+                <h1 class="text-2xl font-bold tracking-tight">Arbitrage<span class="text-blue-500">Scanner</span></h1>
+                <p class="text-gray-400 text-xs mt-1">Live Market Data</p>
             </div>
-            <div class="flex gap-4 items-center">
-                <div id="user-info" class="text-right hidden">
-                    <p class="text-sm text-gray-400">Вы вошли как</p>
-                    <p class="font-bold text-blue-400" id="user-email">...</p>
-                </div>
-                <button id="login-btn" class="btn-primary px-6 py-2 rounded-xl text-sm font-semibold">Войти</button>
-                <button id="logout-btn" class="glass-panel px-6 py-2 rounded-xl text-sm font-semibold hidden">Выйти</button>
+            <div id="user-badge" class="hidden text-right">
+                <span class="text-[10px] bg-white/10 px-2 py-1 rounded-md text-gray-300" id="header-email">...</span>
             </div>
         </header>
 
-        <!-- PRICING SECTION -->
-        <div id="pricing-section" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <!-- Free -->
-            <div class="glass-panel p-6 border border-white/5">
-                <h3 class="text-xl font-bold text-gray-300">Free</h3>
-                <p class="text-3xl font-extrabold mt-2">$0<span class="text-sm text-gray-500 font-normal">/мес</span></p>
-                <ul class="text-sm text-gray-400 mt-4 space-y-2">
-                    <li>✔ Профит до 3%</li>
-                    <li>✔ Макс 4 связки</li>
-                    <li>✔ Задержка 5 сек</li>
-                </ul>
-            </div>
-            <!-- Standard -->
-            <div class="glass-panel p-6 border border-blue-500/30 relative transform scale-105">
-                <div class="absolute top-0 right-0 bg-blue-500 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">ПОПУЛЯРНЫЙ</div>
-                <h3 class="text-xl font-bold text-blue-400">Standard</h3>
-                <p class="text-3xl font-extrabold mt-2">$19<span class="text-sm text-gray-500 font-normal">/мес</span></p>
-                <ul class="text-sm text-gray-400 mt-4 space-y-2">
-                    <li>✔ Профит до 7%</li>
-                    <li>✔ До 15 связок</li>
-                    <li>✔ Спот + P2P</li>
-                    <li>✔ Реальное время</li>
-                </ul>
-            </div>
-            <!-- Premium -->
-            <div class="glass-panel p-6 border border-purple-500/30">
-                <h3 class="text-xl font-bold text-purple-400">Premium (VIP)</h3>
-                <p class="text-3xl font-extrabold mt-2">$49<span class="text-sm text-gray-500 font-normal">/мес</span></p>
-                <ul class="text-sm text-gray-400 mt-4 space-y-2">
-                    <li>✔ Без ограничений профита</li>
-                    <li>✔ Весь рынок (Топ-20)</li>
-                    <li>✔ Все монеты и P2P</li>
-                    <li>✔ Реальное время</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- DATA TABLE -->
-        <div class="glass-panel overflow-hidden">
-            <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+        <!-- VIEW: SCANNER -->
+        <div id="view-scanner" class="view-section">
+            <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold">Активные связки</h2>
                 <span class="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 font-bold uppercase" id="current-tier">Tier</span>
             </div>
             
-            <div id="table-container" class="hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="text-xs text-gray-400 uppercase bg-black/20">
-                            <tr>
-                                <th class="px-6 py-4">#</th>
-                                <th class="px-6 py-4">Тип</th>
-                                <th class="px-6 py-4">Монета</th>
-                                <th class="px-6 py-4">Купить (Биржа)</th>
-                                <th class="px-6 py-4">Продать (Биржа)</th>
-                                <th class="px-6 py-4 text-right">Профит</th>
-                            </tr>
-                        </thead>
-                        <tbody id="opportunities-body">
-                            <!-- Rows injected here -->
-                        </tbody>
-                    </table>
-                </div>
+            <!-- Desktop Table (Скрыт на мобилках) -->
+            <div class="glass-panel overflow-hidden hidden md:block">
+                <table class="w-full text-left text-sm">
+                    <thead class="text-xs text-gray-400 uppercase bg-black/20">
+                        <tr>
+                            <th class="px-4 py-3">#</th>
+                            <th class="px-4 py-3">Тип</th>
+                            <th class="px-4 py-3">Монета</th>
+                            <th class="px-4 py-3">Купить</th>
+                            <th class="px-4 py-3">Продать</th>
+                            <th class="px-4 py-3 text-right">Профит</th>
+                        </tr>
+                    </thead>
+                    <tbody id="desktop-table-body"></tbody>
+                </table>
             </div>
 
-            <div id="empty-state" class="p-12 text-center text-gray-500">
-                <p class="text-lg">Ожидание связок...</p>
-                <p class="text-sm mt-2">Данные появятся автоматически при наличии спреда на рынке.</p>
+            <!-- Mobile Cards (Скрыты на десктопе) -->
+            <div id="mobile-cards" class="space-y-3 md:hidden"></div>
+
+            <div id="empty-state" class="glass-panel p-8 text-center text-gray-500 mt-4 hidden">
+                <p class="text-sm">Сканируем рынок...</p>
+                <p class="text-xs mt-1">Связки появятся здесь автоматически.</p>
+            </div>
+        </div>
+
+        <!-- VIEW: PROFILE (Скрыт по умолчанию) -->
+        <div id="view-profile" class="view-section hidden">
+            <div class="glass-panel p-6 mb-6">
+                <h2 class="text-lg font-bold mb-4">Ваш профиль</h2>
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-xl">👤</div>
+                    <div>
+                        <p class="font-bold text-white break-all text-sm" id="profile-email">...</p>
+                        <p class="text-xs text-blue-400 font-semibold" id="profile-tier">...</p>
+                    </div>
+                </div>
+                <button id="logout-btn" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl py-3 text-sm font-semibold transition-all mt-2">
+                    Выйти из аккаунта
+                </button>
+            </div>
+
+            <h3 class="text-sm font-bold text-gray-400 mb-3 ml-2">Доступные тарифы</h3>
+            
+            <div class="space-y-3">
+                <!-- Free -->
+                <div class="glass-panel p-4 border border-white/5 flex justify-between items-center">
+                    <div>
+                        <h4 class="font-bold text-gray-300">Free</h4>
+                        <p class="text-xs text-gray-500">До 3% | 4 связки</p>
+                    </div>
+                    <span class="text-sm font-bold text-gray-400">$0</span>
+                </div>
+                <!-- Standard -->
+                <div class="glass-panel p-4 border border-blue-500/30 flex justify-between items-center bg-blue-500/5">
+                    <div>
+                        <h4 class="font-bold text-blue-400">Standard</h4>
+                        <p class="text-xs text-gray-500">До 7% | 15 связок | P2P</p>
+                    </div>
+                    <span class="text-sm font-bold text-blue-400">$19/мес</span>
+                </div>
+                <!-- Premium -->
+                <div class="glass-panel p-4 border border-purple-500/30 flex justify-between items-center bg-purple-500/5">
+                    <div>
+                        <h4 class="font-bold text-purple-400">Premium (VIP)</h4>
+                        <p class="text-xs text-gray-500">Без лимитов | Весь рынок</p>
+                    </div>
+                    <span class="text-sm font-bold text-purple-400">$49/мес</span>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- BOTTOM NAVIGATION -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchView('scanner')" id="nav-scanner">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+            <span>Связки</span>
+        </div>
+        <div class="nav-item" onclick="switchView('profile')" id="nav-profile">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            <span>Профиль</span>
+        </div>
+    </nav>
+
     <script>
         const socket = io();
-        let currentUser = null;
-
+        
         const authModal = document.getElementById('auth-modal');
         const authForm = document.getElementById('auth-form');
-        const loginBtn = document.getElementById('login-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        const userInfo = document.getElementById('user-info');
-        const userEmail = document.getElementById('user-email');
-        const tableContainer = document.getElementById('table-container');
+        const userBadge = document.getElementById('user-badge');
+        const headerEmail = document.getElementById('header-email');
+        const profileEmail = document.getElementById('profile-email');
+        const profileTier = document.getElementById('profile-tier');
+        
+        const desktopBody = document.getElementById('desktop-table-body');
+        const mobileCards = document.getElementById('mobile-cards');
         const emptyState = document.getElementById('empty-state');
-        const opportunitiesBody = document.getElementById('opportunities-body');
         const currentTier = document.getElementById('current-tier');
 
+        let currentUser = null;
+
+        // Переключение вкладок
+        function switchView(view) {
+            document.getElementById('view-scanner').classList.add('hidden');
+            document.getElementById('view-profile').classList.add('hidden');
+            document.getElementById('nav-scanner').classList.remove('active');
+            document.getElementById('nav-profile').classList.remove('active');
+
+            document.getElementById('view-' + view).classList.remove('hidden');
+            document.getElementById('nav-' + view).classList.add('active');
+        }
+
+        // Проверка авторизации
         async function checkAuth() {
             const res = await fetch('/api/me');
             const data = await res.json();
+            
             if (data.loggedIn) {
                 currentUser = data;
-                loginBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                userInfo.classList.remove('hidden');
-                userEmail.textContent = data.email;
+                authModal.classList.add('hidden');
+                userBadge.classList.remove('hidden');
+                
+                // Настройка профиля
+                headerEmail.textContent = data.email;
+                profileEmail.textContent = data.email;
+                profileTier.textContent = data.tier.toUpperCase();
                 currentTier.textContent = data.tier;
-                currentTier.className = data.tier === 'premium' 
-                    ? 'text-xs px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 font-bold uppercase'
-                    : (data.tier === 'standard' ? 'text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 font-bold uppercase' : 'text-xs px-3 py-1 rounded-full bg-gray-500/20 text-gray-400 font-bold uppercase');
-                tableContainer.classList.remove('hidden');
-                emptyState.classList.add('hidden');
-                document.getElementById('pricing-section').classList.add('hidden');
+                
+                const tierColors = {
+                    free: 'bg-gray-500/20 text-gray-400',
+                    standard: 'bg-blue-500/20 text-blue-400',
+                    premium: 'bg-purple-500/20 text-purple-400'
+                };
+                currentTier.className = `text-xs px-3 py-1 rounded-full font-bold uppercase ${tierColors[data.tier]}`;
             } else {
                 authModal.classList.remove('hidden');
-                tableContainer.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-                emptyState.innerHTML = `<p class="text-lg">Войдите в аккаунт</p><p class="text-sm mt-2">Чтобы увидеть связки, авторизуйтесь.</p>`;
             }
         }
         checkAuth();
 
+        // Логин / Регистрация
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
@@ -214,7 +265,7 @@
                 if (res.ok) {
                     await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email, password }) });
                 } else {
-                    err.textContent = "Ошибка входа или регистрации";
+                    err.textContent = "Ошибка входа";
                     err.classList.remove('hidden');
                     return;
                 }
@@ -224,48 +275,80 @@
             checkAuth();
         });
 
-        logoutBtn.addEventListener('click', async () => {
+        document.getElementById('logout-btn').addEventListener('click', async () => {
             await fetch('/api/logout', { method: 'POST' });
             location.reload();
         });
 
+        // Получение данных со сканера
         socket.on('data', (data) => {
             const opps = data.opportunities;
-            if (!opps || opps.length === 0) return;
+            
+            if (!opps || opps.length === 0) {
+                if (!desktopBody.innerHTML && !mobileCards.innerHTML) {
+                    emptyState.classList.remove('hidden');
+                }
+                return;
+            }
 
-            tableContainer.classList.remove('hidden');
             emptyState.classList.add('hidden');
-            opportunitiesBody.innerHTML = '';
+            desktopBody.innerHTML = '';
+            mobileCards.innerHTML = '';
 
             opps.forEach((opt, index) => {
-                const tr = document.createElement('tr');
-                tr.className = 'table-row';
-                
                 const isP2P = opt.type === 'P2P';
                 const typeBadge = isP2P 
-                    ? `<span class="px-2 py-1 rounded text-xs font-bold bg-purple-500/20 text-purple-400">P2P</span>`
-                    : `<span class="px-2 py-1 rounded text-xs font-bold bg-green-500/20 text-green-400">SPOT</span>`;
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400">P2P</span>`
+                    : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-400">SPOT</span>`;
                 
                 const profitColor = opt.profit > 0 ? 'text-green-400 text-glow' : 'text-red-400';
                 const pricePrefix = isP2P ? '' : '$';
 
+                // 1. Верстка для Десктопа (Таблица)
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-white/5 hover:bg-white/5 transition-colors';
                 tr.innerHTML = `
-                    <td class="px-6 py-4 font-bold text-gray-500">${index + 1}</td>
-                    <td class="px-6 py-4">${typeBadge}</td>
-                    <td class="px-6 py-4 font-bold text-white">${opt.pair}</td>
-                    <td class="px-6 py-4">
+                    <td class="px-4 py-3 font-bold text-gray-500">${index + 1}</td>
+                    <td class="px-4 py-3">${typeBadge}</td>
+                    <td class="px-4 py-3 font-bold text-white">${opt.pair}</td>
+                    <td class="px-4 py-3">
                         <div class="text-xs text-gray-400">${opt.buyEx}</div>
                         <div class="font-medium text-white">${pricePrefix}${opt.buyPrice.toFixed(2)}</div>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="px-4 py-3">
                         <div class="text-xs text-gray-400">${opt.sellEx}</div>
                         <div class="font-medium text-white">${pricePrefix}${opt.sellPrice.toFixed(2)}</div>
                     </td>
-                    <td class="px-6 py-4 text-right font-bold ${profitColor}">
-                        +${opt.profit.toFixed(2)}%
-                    </td>
+                    <td class="px-4 py-3 text-right font-bold ${profitColor}">+${opt.profit.toFixed(2)}%</td>
                 `;
-                opportunitiesBody.appendChild(tr);
+                desktopBody.appendChild(tr);
+
+                // 2. Верстка для Мобилок (Карточки)
+                const card = document.createElement('div');
+                card.className = 'glass-panel p-4 flex flex-col gap-3';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-lg text-white">${opt.pair}</span>
+                            ${typeBadge}
+                        </div>
+                        <span class="font-bold ${profitColor}">+${opt.profit.toFixed(2)}%</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm bg-black/20 p-2 rounded-xl">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-gray-400">КУПИТЬ</span>
+                            <span class="font-bold text-white">${pricePrefix}${opt.buyPrice.toFixed(2)}</span>
+                            <span class="text-[10px] text-blue-400">${opt.buyEx}</span>
+                        </div>
+                        <div class="text-gray-500">➔</div>
+                        <div class="flex flex-col text-right">
+                            <span class="text-[10px] text-gray-400">ПРОДАТЬ</span>
+                            <span class="font-bold text-white">${pricePrefix}${opt.sellPrice.toFixed(2)}</span>
+                            <span class="text-[10px] text-blue-400">${opt.sellEx}</span>
+                        </div>
+                    </div>
+                `;
+                mobileCards.appendChild(card);
             });
         });
     </script>

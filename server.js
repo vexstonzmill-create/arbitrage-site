@@ -17,8 +17,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 const JWT_SECRET = "super_secret_crypto_key_123";
 
-// --- БАЗА ДАННЫХ (Neon.tech) ---
-// Внимание: строка подключения захардкожена. Репозиторий должен быть PRIVATE!
+// --- БАЗА ДАННЫХ ---
 const pool = new Pool({
     connectionString: "postgresql://neondb_owner:npg_xN9OFsw6uCMe@ep-solitary-cloud-bahn17dh-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
     ssl: { rejectUnauthorized: false }
@@ -206,7 +205,6 @@ async function scanP2P() {
     allP2POpportunities = results.sort((a, b) => b.profit - a.profit);
 }
 
-// --- ФИЛЬТРАЦИЯ ПО ТАРИФАМ ---
 io.on('connection', (socket) => {
     let userTier = 'free';
     const cookies = socket.handshake.headers.cookie;
@@ -223,9 +221,7 @@ io.on('connection', (socket) => {
         let payload = [];
 
         if (userTier === 'free') {
-            if (Math.random() > 0.8) { 
-                payload = allOpps.filter(o => o.profit <= 3.0).slice(0, 4);
-            }
+            payload = allOpps.filter(o => o.profit <= 3.0).slice(0, 4);
         } 
         else if (userTier === 'standard') {
             payload = allOpps.filter(o => o.profit <= 7.0).slice(0, 15);
@@ -234,15 +230,19 @@ io.on('connection', (socket) => {
             payload = allOpps.slice(0, 20);
         }
 
-        if (payload.length > 0) {
-            socket.emit('data', { tier: userTier, opportunities: payload });
-        }
+        // Отправляем даже пустой массив, чтобы фронтенд знал, что связей нет
+        socket.emit('data', { tier: userTier, opportunities: payload });
     }, 1000);
 
     socket.on('disconnect', () => clearInterval(interval));
 });
 
 setInterval(scanSpot, 1000);
+setInterval(scanP2P, 30000);
+initSpot();
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log('Server running on port ' + PORT));al(scanSpot, 1000);
 setInterval(scanP2P, 30000);
 initSpot();
 
