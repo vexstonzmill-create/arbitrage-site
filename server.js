@@ -1,7 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const WebSocket = require('ws');
+const ccxt = require('ccxt');
 const path = require('path');
 
 const app = express();
@@ -12,150 +12,160 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const FEE_BINANCE = 0.1; 
-const FEE_BYBIT = 0.1;   
+const PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
+const EXCHANGES = ['binance', 'bybit', 'okx', 'mexc'];
+const FEE_PCT = 0.2; // 0.1% + 0.1% = 0.2% total fee
 
-const PAIRS = [
-    { binance: 'btcusdt', bybit: 'BTCUSDT', name: 'BTC/USDT' },
-    { binance: 'ethusdt', bybit: 'ETHUSDT', name: 'ETH/USDT' },
-    { binance: 'solusdt', bybit: 'SOLUSDT', name: 'SOL/USDT' }
-];
+let spotPrices = {};
 
-let prices = {};
-PAIRS.forEach(p => {
-    prices[p.name] = {
-        binance: { bid: 0, ask: 0 },
-        bybit: { bid: 0, ask: 0 }
-    };
-});
-
-function connectBinance() {
-    const streams = PAIRS.map(p => `${p.binance}@bookTicker`).join('/');
-    const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
-
-    ws.on('open', () => console.log('Binance connected'));
-    ws.on('message', (data) => {
+// --- 1. Init Spot WebSockets (CCXT) ---
+async function initSpot() {
+    for (const exName of EXCHANGES) {
         try {
-            const msg = JSON.parse(data).data;
-            if (!msg || !msg.s) return;
+            const exchange = new ccxt.pro[exName]();
             
-            const symbol = msg.s.replace('USDT', '/USDT');
-            if (prices[symbol]) {
-                prices[symbol].binance.bid = parseFloat(msg.b);
-                prices[symbol].binance.ask = parseFloat(msg.a);
+            for (const symbol of PAIRS) {
+                (async () => {
+                    while (true) {
+                        try {
+                            const orderbook = await exchange.watchOrderBook(symbol);
+                            const bestBid = orderbook.bids[0][0];
+                            const bestAsk = orderbook.asks[0][0];
+
+                            if (!spotPrices[symbol]) spotPrices[symbol] = {};
+                            spotPrices[symbol][exName] = { bid: bestBid, ask: bestAsk };
+                        } catch (e) {
+                            await new Promise(r => setTimeout(r, 5000));
+                        }
+                    }
+                })();
             }
-        } catch (e) {}
-    });
-    ws.on('close', () => { 
-        console.log('Binance disconnected. Reconnecting...'); 
-        setTimeout(connectBinance, 3000); 
-    });
-    ws.on('error', (err) => console.log('Binance error:', err.message));
+            console.log(exName + ' connected');
+        } catch (e) {
+            console.log(exName + ' init error: ' + e.message);
+        }
+    }
 }
 
-function connectBybit() {
-    const ws = new WebSocket('wss://stream.bybit.com/v5/public/spot');
+// --- 2. Fetch Binance P2P ---
+async function fetchBinanceP2P(fiat, tradeType) {
+    try {
+        const res = await fetch('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                page: 1, rows: 5, payTypes: [], countries: [],
+                publisherType: null, asset: 'USDT', fiat: fiat, tradeType: tradeType
+            })
+        });
+        const json = await res.json();
+        if (json.data && json.data.length > 0) {
+            return parseFloat(json.data[0].adv.price);
+        }
+        return null;
+    } catch (e) { return null; }
+}
 
-    ws.on('open', () => {
-        console.log('Bybit connected');
-        const args = PAIRS.map(p => `orderbook.1.${p.bybit}`);
-        ws.send(JSON.stringify({ op: "subscribe", args: args }));
-    });
-    
-    ws.on('message', (data) => {
-        try {
-            const msg = JSON.parse(data);
-            
-            if (msg.op === 'ping') {
-                ws.send(JSON.stringify({ op: 'pong' }));
-                return;
+// --- 3. Fetch Fiat Cross Rate ---
+async function fetchFiatRate(base, quote) {
+    try {
+        const res = await fetch('https://api.frankfurter.app/latest?from=' + base + '&to=' + quote);
+        const data = await res.json();
+        return data.rates[quote] || null;
+    } catch (e) { return null; }
+}
+
+// --- 4. Scan P2P ---
+async function scanP2P() {
+    const countries = [
+        { fiat: 'MDL', label: 'Moldova' },
+        { fiat: 'CAD', label: 'Canada' },
+        { fiat: 'RUB', label: 'Russia' },
+        { fiat: 'TRY', label: 'Turkey' }
+    ];
+
+    const usdtPrices = {};
+    for (const c of countries) {
+        usdtPrices[c.fiat] = await fetchBinanceP2P(c.fiat, 'BUY');
+    }
+
+    let bestP2P = null;
+
+    for (let i = 0; i < countries.length; i++) {
+        for (let j = 0; j < countries.length; j++) {
+            if (i === j) continue;
+            const cBuy = countries[i];
+            const cSell = countries[j];
+            const priceBuy = usdtPrices[cBuy.fiat];
+            const priceSell = usdtPrices[cSell.fiat];
+
+            if (!priceBuy || !priceSell) continue;
+
+            let fiatRate = 1;
+            if (cBuy.fiat !== cSell.fiat) {
+                fiatRate = await fetchFiatRate(cBuy.fiat, cSell.fiat);
             }
+            if (!fiatRate) continue;
 
-            if (msg.data && msg.topic && msg.data.b && msg.data.a) {
-                const symbol = msg.data.s.replace('USDT', '/USDT');
-                if (prices[symbol]) {
-                    prices[symbol].bybit.bid = parseFloat(msg.data.b[0][0]);
-                    prices[symbol].bybit.ask = parseFloat(msg.data.a[0][0]);
+            // Cost of 1 USDT in Sell Country's fiat
+            const costInSellFiat = priceBuy * fiatRate;
+            const profitPct = ((priceSell - costInSellFiat) / costInSellFiat) * 100 - FEE_PCT;
+
+            if (!bestP2P || profitPct > bestP2P.profit) {
+                bestP2P = {
+                    type: 'P2P', pair: 'USDT',
+                    buyEx: cBuy.label + ' (' + cBuy.fiat + ')', 
+                    sellEx: cSell.label + ' (' + cSell.fiat + ')',
+                    buyPrice: priceBuy, sellPrice: priceSell, profit: profitPct
+                };
+            }
+        }
+    }
+
+    if (bestP2P && bestP2P.profit > 0) {
+        io.emit('arbitrageData', [bestP2P]);
+    }
+}
+
+// --- 5. Scan Spot ---
+function scanSpot() {
+    let bestSpot = null;
+
+    for (const symbol of PAIRS) {
+        const prices = spotPrices[symbol];
+        if (!prices) continue;
+
+        const exchanges = Object.keys(prices);
+        for (let i = 0; i < exchanges.length; i++) {
+            for (let j = 0; j < exchanges.length; j++) {
+                if (i === j) continue;
+                const exBuy = exchanges[i];
+                const exSell = exchanges[j];
+
+                const buyPrice = prices[exBuy].ask;
+                const sellPrice = prices[exSell].bid;
+                const profitPct = ((sellPrice - buyPrice) / buyPrice) * 100 - FEE_PCT;
+
+                if (!bestSpot || profitPct > bestSpot.profit) {
+                    bestSpot = {
+                        type: 'SPOT', pair: symbol, 
+                        buyEx: exBuy, sellEx: exSell,
+                        buyPrice: buyPrice, sellPrice: sellPrice, profit: profitPct
+                    };
                 }
             }
-        } catch (e) {}
-    });
-    ws.on('close', () => { 
-        console.log('Bybit disconnected. Reconnecting...'); 
-        setTimeout(connectBybit, 3000); 
-    });
-    ws.on('error', (err) => console.log('Bybit error:', err.message));
+        }
+    }
+
+    if (bestSpot && bestSpot.profit > 0.1) {
+        io.emit('arbitrageData', [bestSpot]);
+    }
 }
 
-setInterval(() => {
-    let results = [];
-    
-    for (const pair of PAIRS) {
-        const p = prices[pair.name];
-        if (!p.binance.bid || !p.bybit.bid) continue;
+setInterval(scanSpot, 1000);
+setInterval(scanP2P, 30000);
 
-        const buy1 = p.binance.ask;
-        const sell1 = p.bybit.bid;
-        const net1 = ((sell1 - buy1) / buy1) * 100 - FEE_BINANCE - FEE_BYBIT;
-
-        const buy2 = p.bybit.ask;
-        const sell2 = p.binance.bid;
-        const net2 = ((sell2 - buy2) / buy2) * 100 - FEE_BINANCE - FEE_BYBIT;
-
-        if (net1 > net2) {
-            results.push({
-                pair: pair.name, direction: 'BINANCE TO BYBIT',
-                buyEx: 'Binance', sellEx: 'Bybit',
-                buyPrice: buy1, sellPrice: sell1, profit: net1
-            });
-        } else {
-            results.push({
-                pair: pair.name, direction: 'BYBIT TO BINANCE',
-                buyEx: 'Bybit', sellEx: 'Binance',
-                buyPrice: buy2, sellPrice: sell2, profit: net2
-            });
-        }
-    }
-
-    if (results.length > 0) {
-        io.emit('arbitrageData', results);
-    }
-}, 1000);
-
-connectBinance();
-connectBybit();
+initSpot();
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`);
-});e, direction: 'BYBIT ➔ BINANCE',
-                buyEx: 'Bybit', sellEx: 'Binance',
-                buyPrice: buy2, sellPrice: sell2, profit: net2
-            });
-        }
-    }
-
-    if (results.length > 0) {
-        io.emit('arbitrageData', results);
-    }
-}, 1000);
-
-// Запуск
-connectBinance();
-connectBybit();
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 Сервер работает на порту ${PORT}`);
-});trageData', results);
-    }
-}, 1000);
-
-// Запуск
-connectBinance();
-connectBybit();
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 Сервер работает на порту ${PORT}`);
-});
+server.listen(PORT, () => console.log('Server running on port ' + PORT));

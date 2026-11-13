@@ -30,10 +30,7 @@
         .tactile-card {
             background: linear-gradient(145deg, #0a1128, #050814);
             border-radius: 48px;
-            box-shadow: 
-                20px 20px 60px rgba(0, 0, 0, 0.8),
-                -1px -1px 2px rgba(255, 255, 255, 0.05),
-                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            box-shadow: 20px 20px 60px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(255, 255, 255, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.03);
             position: relative;
             overflow: hidden;
@@ -44,10 +41,7 @@
         .soft-blue-block {
             background: linear-gradient(135deg, #1e55ff 0%, #0a36cc 100%);
             border-radius: 40px;
-            box-shadow: 
-                0 10px 30px rgba(30, 85, 255, 0.4),
-                inset 0 2px 5px rgba(255, 255, 255, 0.3),
-                inset 0 -2px 5px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(30, 85, 255, 0.4), inset 0 2px 5px rgba(255, 255, 255, 0.3), inset 0 -2px 5px rgba(0, 0, 0, 0.2);
         }
 
         .glass-inner {
@@ -61,10 +55,7 @@
 
         .btn-neumorph {
             background: linear-gradient(145deg, #111a33, #070b18);
-            box-shadow: 
-                6px 6px 12px rgba(0, 0, 0, 0.6),
-                -2px -2px 8px rgba(255, 255, 255, 0.05),
-                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.6), -2px -2px 8px rgba(255, 255, 255, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.02);
             transition: all 0.2s ease;
         }
@@ -72,10 +63,7 @@
 
         .btn-send {
             background: linear-gradient(135deg, #3b82f6, #0052ff);
-            box-shadow: 
-                0 8px 20px rgba(0, 82, 255, 0.5),
-                inset 0 2px 4px rgba(255, 255, 255, 0.4),
-                inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 20px rgba(0, 82, 255, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.2);
             transition: all 0.2s ease;
         }
         .btn-send:active { transform: translateY(2px); box-shadow: 0 4px 10px rgba(0, 82, 255, 0.5); }
@@ -93,9 +81,9 @@
             <div class="flex justify-between items-center mb-6">
                 <div class="flex items-center gap-2">
                     <div class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">AS</div>
-                    <span class="text-sm font-medium text-blue-100" id="pair-title">Загрузка...</span>
+                    <span class="text-sm font-medium text-blue-100" id="pair-title">Поиск связок...</span>
                 </div>
-                <div class="w-6 h-6 rounded-full bg-black/20 flex items-center justify-center text-xs">i</div>
+                <div class="px-2 py-1 rounded bg-black/20 text-xs font-bold" id="type-badge">LIVE</div>
             </div>
 
             <div class="text-center mb-8">
@@ -107,19 +95,19 @@
                 </h1>
             </div>
 
-            <div class="flex justify-center gap-3">
+            <div class="flex justify-center gap-3" id="coin-icons">
                 <div class="w-12 h-12 rounded-full bg-[#F3BA2F] flex items-center justify-center text-black font-bold shadow-lg border-2 border-blue-400">B</div>
                 <div class="w-12 h-12 rounded-full bg-black flex items-center justify-center text-white font-bold shadow-lg border-2 border-blue-400 text-[10px]">Bybit</div>
-                <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-black font-bold shadow-lg opacity-50">?</div>
-                <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-black font-bold shadow-lg opacity-30">?</div>
+                <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-black font-bold shadow-lg border-2 border-blue-400 text-[10px]">OKX</div>
+                <div class="w-12 h-12 rounded-full bg-blue-900 flex items-center justify-center text-white font-bold shadow-lg border-2 border-blue-400 text-[10px]">MEXC</div>
             </div>
         </div>
 
         <div class="mt-4 px-1">
             <div class="glass-inner p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <span class="text-xs text-gray-400 font-medium">Детали связки</span>
-                    <span class="text-xs text-blue-400 underline decoration-blue-400/30">Спот</span>
+                    <span class="text-xs text-gray-400 font-medium" id="details-label">Детали связки</span>
+                    <span class="text-xs text-blue-400 underline decoration-blue-400/30">Маркет</span>
                 </div>
                 
                 <div class="flex items-center justify-between">
@@ -129,14 +117,14 @@
                         </div>
                         <div>
                             <p class="text-sm font-semibold text-white" id="buy-exchange">...</p>
-                            <p class="text-xs text-gray-400" id="buy-price">$0.00</p>
+                            <p class="text-xs text-gray-400" id="buy-price">...</p>
                         </div>
                     </div>
                     <div class="text-gray-500 text-xl font-light">➔</div>
                     <div class="flex items-center gap-3 text-right">
                         <div>
                             <p class="text-sm font-semibold text-white" id="sell-exchange">...</p>
-                            <p class="text-xs text-gray-400" id="sell-price">$0.00</p>
+                            <p class="text-xs text-gray-400" id="sell-price">...</p>
                         </div>
                         <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
                             <span class="text-xs font-bold text-red-400">Sell</span>
@@ -172,24 +160,51 @@
         const elBuyPrice = document.getElementById('buy-price');
         const elSellPrice = document.getElementById('sell-price');
         const elTradeBtn = document.getElementById('trade-btn');
+        const elTypeBadge = document.getElementById('type-badge');
+        const elDetailsLabel = document.getElementById('details-label');
 
         socket.on('arbitrageData', (data) => {
             if (!data || data.length === 0) return;
 
-            data.sort((a, b) => b.profit - a.profit);
             const best = data[0];
 
             elPair.textContent = best.pair;
             elProfit.textContent = `${best.profit > 0 ? '+' : ''}${best.profit.toFixed(3)}%`;
-            elBuyEx.textContent = best.buyEx;
-            elSellEx.textContent = best.sellEx;
-            elBuyPrice.textContent = `$${best.buyPrice.toFixed(2)}`;
-            elSellPrice.textContent = `$${best.sellPrice.toFixed(2)}`;
+            elBuyEx.textContent = best.buyEx.toUpperCase();
+            elSellEx.textContent = best.sellEx.toUpperCase();
+            
+            elTypeBadge.textContent = best.type;
+            elTypeBadge.className = best.type === 'P2P' 
+                ? 'px-2 py-1 rounded bg-purple-500/20 text-xs font-bold text-purple-300'
+                : 'px-2 py-1 rounded bg-green-500/20 text-xs font-bold text-green-300';
 
-            let coin = best.pair.split('/')[0];
-            let url = best.buyEx === 'Binance' 
-                ? `https://www.binance.com/en/trade/${coin}_USDT?type=spot`
-                : `https://www.bybit.com/en/trade/spot/${coin}/USDT`;
+            elDetailsLabel.textContent = best.type === 'P2P' ? 'Детали (Фиат)' : 'Детали (Спот)';
+
+            // Форматирование цен
+            if (best.type === 'P2P') {
+                elBuyPrice.textContent = `${best.buyPrice.toFixed(2)} FIAT`;
+                elSellPrice.textContent = `${best.sellPrice.toFixed(2)} FIAT`;
+            } else {
+                elBuyPrice.textContent = `$${best.buyPrice.toFixed(2)}`;
+                elSellPrice.textContent = `$${best.sellPrice.toFixed(2)}`;
+            }
+
+            // Логика кнопки
+            let url = '#';
+            if (best.type === 'P2P') {
+                url = 'https://p2p.binance.com/en/trade/buy/USDT';
+            } else {
+                let coin = best.pair.split('/')[0];
+                if (best.buyEx.toLowerCase().includes('binance')) {
+                    url = `https://www.binance.com/en/trade/${coin}_USDT?type=spot`;
+                } else if (best.buyEx.toLowerCase().includes('bybit')) {
+                    url = `https://www.bybit.com/en/trade/spot/${coin}/USDT`;
+                } else if (best.buyEx.toLowerCase().includes('okx')) {
+                    url = `https://www.okx.com/trade-spot/${coin.toLowerCase()}-usdt`;
+                } else {
+                    url = `https://www.mexc.com/exchange/${coin}_USDT`;
+                }
+            }
             
             elTradeBtn.onclick = () => window.open(url, '_blank');
         });

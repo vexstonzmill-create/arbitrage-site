@@ -1,16 +1,19 @@
 {
   "name": "crypto-arbitrage-ui",
   "version": "1.0.0",
-  "description": "Real-time crypto arbitrage scanner",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
-    "node": ">=20.0.0 <21.0.0"
+    "node": "20.x"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "express": "4.18.2",
+    "socket.io": "4.7.2",
+    "ccxt": "4.4.15"
+  }
+}ss": "^4.18.2",
     "socket.io": "^4.7.2",
     "ws": "^8.16.0"
   }
