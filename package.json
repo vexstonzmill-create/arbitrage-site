@@ -1,6 +1,6 @@
 {
   "name": "crypto-arbitrage-ui",
-  "version": "1.0.0",
+  "version": "3.1.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,6 +11,10 @@
   "dependencies": {
     "express": "4.18.2",
     "socket.io": "4.7.2",
-    "ccxt": "4.4.15"
+    "ccxt": "4.4.15",
+    "bcryptjs": "2.4.3",
+    "jsonwebtoken": "9.0.2",
+    "cookie-parser": "1.4.6",
+    "pg": "8.11.3"
   }
 }
