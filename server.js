@@ -10,9 +10,10 @@ const PORT = process.env.PORT || 3002;
 // !!! НАСТРОЙКИ (ЗАМЕНИТЬ НА СВОИ) !!!
 // ==========================================
 const BOT_TOKEN = '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE'; 
-const CHANNEL_ID = '-1004468086212'; // !!! ЗАМЕНИТЬ на юзернейм твоего канала
-const APP_URL = 'https://vxomanual.onrender.com'; // !!! ЗАМЕНИТЬ на домен этого сайта на Render
-const ADMIN_IDS = [6938068102]; // !!! ЗАМЕНИТЬ на твой Telegram ID (цифры)
+const CHANNEL_ID = -1002345678901; // !!! ЗАМЕНИТЬ на ЧИСЛОВОЙ ID канала (начинается с -100)
+const CHANNEL_LINK = 'https://t.me/+D8d2jz_icbU5M2Ri'; // Ссылка для кнопки
+const APP_URL = 'https://vexo-hub.onrender.com'; // !!! ЗАМЕНИТЬ на домен этого сайта на Render
+const ADMIN_IDS = [123456789]; // !!! ЗАМЕНИТЬ на твой Telegram ID
 // ==========================================
 
 const pool = new Pool({
@@ -68,11 +69,9 @@ async function initDB() {
       );
     `);
 
-    // Миграция: добавляем колонки оплаты, если их ещё нет
     await pool.query(`ALTER TABLE hub_market ADD COLUMN IF NOT EXISTS payment_methods TEXT[] DEFAULT '{}';`);
     await pool.query(`ALTER TABLE hub_market ADD COLUMN IF NOT EXISTS payment_details JSONB DEFAULT '{}';`);
 
-    // Сид базовых данных
     if ((await pool.query('SELECT COUNT(*) FROM hub_terms')).rows[0].count === '0') {
       await pool.query(`INSERT INTO hub_terms (term, definition) VALUES 
         ('P2P', 'Peer-to-peer — прямой обмен между людьми'),
@@ -107,7 +106,10 @@ async function checkSubscription(tgId) {
   try {
     const member = await bot.getChatMember(CHANNEL_ID, tgId);
     return ['creator', 'administrator', 'member'].includes(member.status);
-  } catch (e) { return false; }
+  } catch (e) { 
+    console.error('Sub check failed:', e.message);
+    return false; 
+  }
 }
 
 // --- API ---
@@ -175,13 +177,11 @@ app.post('/api/market/buy', async (req, res) => {
     if (!product.payment_methods || !product.payment_methods.includes(payment_method)) 
       return res.status(400).json({ error: 'method_not_available' });
     
-    // Проверка дубликата
     const dup = await pool.query(
       "SELECT id FROM hub_purchases WHERE market_id = $1 AND buyer_tg_id = $2 AND status = 'pending'",
       [market_id, tg_id]
     );
     if (dup.rows.length > 0) {
-      // Уже есть открытая заявка — возвращаем реквизиты
       const details = (product.payment_details || {})[payment_method];
       return res.json({ ok: true, already: true, details, author_contact: product.contact, author_username: product.author_username });
     }
@@ -191,13 +191,11 @@ app.post('/api/market/buy', async (req, res) => {
       VALUES ($1, $2, $3, $4)
     `, [market_id, tg_id, username || null, payment_method]);
     
-    // Уведомление автору
-    const methodLabel = payment_method;
     bot.sendMessage(product.author_tg_id, 
       `💰 <b>Покупка твоего товара!</b>\n\n` +
       `📦 Товар: <b>${product.title}</b>\n` +
       `👤 Покупатель: @${username || tg_id}\n` +
-      `💳 Способ оплаты: <b>${methodLabel}</b>\n` +
+      `💳 Способ оплаты: <b>${payment_method}</b>\n` +
       `💵 Цена: <b>${product.price}</b>\n\n` +
       `Ожидай оплату и свяжись с покупателем в Telegram.`,
       { parse_mode: 'HTML' }
@@ -225,14 +223,8 @@ app.post('/api/admin/approve', async (req, res) => {
     if (m.rows[0]) {
       const product = m.rows[0];
       const msg = status === 'approved' 
-        ? `✅ <b>Твой товар одобрен!</b>\n\n` +
-          `Категория: ${product.category}\n` +
-          `Название: <b>${product.title}</b>\n` +
-          `Цена: <b>${product.price}</b>\n\n` +
-          `Он уже виден в маркете VEXO Hub.`
-        : `❌ <b>Твой товар отклонён</b>\n\n` +
-          `Название: <b>${product.title}</b>\n\n` +
-          `Свяжись с админом для уточнения причин.`;
+        ? `✅ <b>Твой товар одобрен!</b>\n\nКатегория: ${product.category}\nНазвание: <b>${product.title}</b>\nЦена: <b>${product.price}</b>\n\nОн уже виден в маркете VEXO Hub.`
+        : `❌ <b>Твой товар отклонён</b>\n\nНазвание: <b>${product.title}</b>\n\nСвяжись с админом для уточнения причин.`;
       
       bot.sendMessage(product.author_tg_id, msg, { parse_mode: 'HTML' }).catch(() => {});
     }
@@ -248,12 +240,12 @@ bot.onText(/\/start/, async (msg) => {
 
   if (!isSubbed) {
     bot.sendMessage(chatId, 
-      `👋 <b>Привет!</b>\n\nДля доступа к VEXO Hub подпишись на наш канал:`,
+      `👋 <b>Привет!</b>\n\nДля доступа к VEXO Hub подпишись на наш канал <b>vexo platform</b>:`,
       { 
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '📢 Подписаться', url: CHANNEL_ID.startsWith('@') ? `https://t.me/${CHANNEL_ID.slice(1)}` : 'https://t.me/vexo_channel' }],
+            [{ text: '📢 Подписаться', url: CHANNEL_LINK }], // ИСПОЛЬЗУЕМ ПРЯМУЮ ССЫЛКУ
             [{ text: '✅ Я подписался', callback_data: 'check_sub' }]
           ]
         }
@@ -280,14 +272,22 @@ bot.on('callback_query', async (query) => {
     if (isSubbed) {
       bot.answerCallbackQuery(query.id, { text: '✅ Подписка подтверждена!' });
       bot.editMessageText(
-        `✅ <b>Доступ разрешен!</b>\n\nЖми, чтобы открыть VEXO Hub:`,
+        `✅ <b>Доступ разрешен!</b>\n\nЖми, чтобы открыть VXO MANUAL:`,
         {
           chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML',
-          reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть VEXO Hub', web_app: { url: APP_URL } }]] }
+          reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть VXO MANUAL', web_app: { url: APP_URL } }]] }
         }
       );
     } else {
       bot.answerCallbackQuery(query.id, { text: '❌ Вы всё еще не подписаны!', show_alert: true });
+    }
+  }
+});
+
+// --- STATIC & START ---
+app.use(express.static(path.join(__dirname)));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.listen(PORT, () => console.log(`✓ VEXO Hub running on port ${PORT}`)); Вы всё еще не подписаны!', show_alert: true });
     }
   }
 });
