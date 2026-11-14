@@ -7,13 +7,13 @@ const crypto = require('crypto');
 const PORT = process.env.PORT || 3002;
 
 // ==========================================
-// !!! НАСТРОЙКИ (ЗАМЕНИТЬ НА СВОИ) !!!
+// !!! ТВОИ НАСТРОЙКИ !!!
 // ==========================================
 const BOT_TOKEN = '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE'; 
-const CHANNEL_ID = -1002345678901; // !!! ЗАМЕНИТЬ на ЧИСЛОВОЙ ID канала (начинается с -100)
-const CHANNEL_LINK = 'https://t.me/+D8d2jz_icbU5M2Ri'; // Ссылка для кнопки
-const APP_URL = 'https://vexo-hub.onrender.com'; // !!! ЗАМЕНИТЬ на домен этого сайта на Render
-const ADMIN_IDS = [123456789]; // !!! ЗАМЕНИТЬ на твой Telegram ID
+const CHANNEL_ID = -1004468086212; // Твой числовой ID канала
+const CHANNEL_LINK = 'https://t.me/+D8d2jz_icbU5M2Ri'; // Ссылка для кнопки (проверь её!)
+const APP_URL = 'https://vexo-hub.onrender.com'; // !!! Обязательно поменяй на реальную ссылку с Render
+const ADMIN_IDS = [6938068102]; // Твой Telegram ID (для админки)
 // ==========================================
 
 const pool = new Pool({
@@ -83,7 +83,7 @@ async function initDB() {
       await pool.query(`INSERT INTO hub_bl (name, reason) VALUES ('Example Exchange', 'Заблокировали вывод средств');`);
     }
     
-    console.log('✓ Hub DB initialized');
+    console.log('✓ VEXO Platform DB initialized');
   } catch (e) { console.error('DB Error', e); }
 }
 initDB();
@@ -223,7 +223,7 @@ app.post('/api/admin/approve', async (req, res) => {
     if (m.rows[0]) {
       const product = m.rows[0];
       const msg = status === 'approved' 
-        ? `✅ <b>Твой товар одобрен!</b>\n\nКатегория: ${product.category}\nНазвание: <b>${product.title}</b>\nЦена: <b>${product.price}</b>\n\nОн уже виден в маркете VEXO Hub.`
+        ? `✅ <b>Твой товар одобрен!</b>\n\nКатегория: ${product.category}\nНазвание: <b>${product.title}</b>\nЦена: <b>${product.price}</b>\n\nОн уже виден в маркете VEXO Platform.`
         : `❌ <b>Твой товар отклонён</b>\n\nНазвание: <b>${product.title}</b>\n\nСвяжись с админом для уточнения причин.`;
       
       bot.sendMessage(product.author_tg_id, msg, { parse_mode: 'HTML' }).catch(() => {});
@@ -240,12 +240,12 @@ bot.onText(/\/start/, async (msg) => {
 
   if (!isSubbed) {
     bot.sendMessage(chatId, 
-      `👋 <b>Привет!</b>\n\nДля доступа к VEXO Hub подпишись на наш канал <b>vexo platform</b>:`,
+      `👋 <b>Привет!</b>\n\nДля доступа к VEXO Platform подпишись на наш канал <b>vexo platform</b>:`,
       { 
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '📢 Подписаться', url: CHANNEL_LINK }], // ИСПОЛЬЗУЕМ ПРЯМУЮ ССЫЛКУ
+            [{ text: '📢 Подписаться', url: CHANNEL_LINK }],
             [{ text: '✅ Я подписался', callback_data: 'check_sub' }]
           ]
         }
@@ -253,11 +253,11 @@ bot.onText(/\/start/, async (msg) => {
     );
   } else {
     bot.sendMessage(chatId,
-      `👋 <b>Добро пожаловать в VEXO Hub!</b>\n\nЖми кнопку ниже, чтобы открыть приложение:`,
+      `👋 <b>Добро пожаловать в VEXO Platform!</b>\n\nЖми кнопку ниже, чтобы открыть приложение:`,
       {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: [[{ text: '🚀 Открыть VEXO Hub', web_app: { url: APP_URL } }]]
+          inline_keyboard: [[{ text: '🚀 Открыть VEXO Platform', web_app: { url: APP_URL } }]]
         }
       }
     );
@@ -272,10 +272,10 @@ bot.on('callback_query', async (query) => {
     if (isSubbed) {
       bot.answerCallbackQuery(query.id, { text: '✅ Подписка подтверждена!' });
       bot.editMessageText(
-        `✅ <b>Доступ разрешен!</b>\n\nЖми, чтобы открыть VEXO Hub:`,
+        `✅ <b>Доступ разрешен!</b>\n\nЖми, чтобы открыть VEXO Platform:`,
         {
           chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML',
-          reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть VEXO Hub', web_app: { url: APP_URL } }]] }
+          reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть VEXO Platform', web_app: { url: APP_URL } }]] }
         }
       );
     } else {
@@ -287,4 +287,4 @@ bot.on('callback_query', async (query) => {
 // --- STATIC & START ---
 app.use(express.static(path.join(__dirname)));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.listen(PORT, () => console.log(`✓ VEXO Hub running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✓ VEXO Platform running on port ${PORT}`));
