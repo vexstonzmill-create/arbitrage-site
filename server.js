@@ -272,22 +272,14 @@ bot.on('callback_query', async (query) => {
     if (isSubbed) {
       bot.answerCallbackQuery(query.id, { text: '✅ Подписка подтверждена!' });
       bot.editMessageText(
-        `✅ <b>Доступ разрешен!</b>\n\nЖми, чтобы открыть VXO MANUAL:`,
+        `✅ <b>Доступ разрешен!</b>\n\nЖми, чтобы открыть VEXO Hub:`,
         {
           chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML',
-          reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть VXO MANUAL', web_app: { url: APP_URL } }]] }
+          reply_markup: { inline_keyboard: [[{ text: '🚀 Открыть VEXO Hub', web_app: { url: APP_URL } }]] }
         }
       );
     } else {
       bot.answerCallbackQuery(query.id, { text: '❌ Вы всё еще не подписаны!', show_alert: true });
-    }
-  }
-});
-
-// --- STATIC & START ---
-app.use(express.static(path.join(__dirname)));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.listen(PORT, () => console.log(`✓ VEXO Hub running on port ${PORT}`)); Вы всё еще не подписаны!', show_alert: true });
     }
   }
 });
