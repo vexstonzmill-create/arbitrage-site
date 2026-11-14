@@ -1,0 +1,17 @@
+{
+  "name": "vexo-hub",
+  "version": "1.0.0",
+  "description": "VEXO P2P Hub — Mini App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-telegram-bot-api": "^0.66.0",
+    "pg": "^8.11.0"
+  }
+}
