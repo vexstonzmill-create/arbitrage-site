@@ -1,376 +1,243 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crypto Arbitrage | Premium Terminal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/socket.io/socket.io.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #030611; 
-            color: white; 
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* 1. Glow / Aurora Effect (Фоновое свечение) */
-        .aurora-bg {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 100vw; height: 100vh;
-            background: radial-gradient(circle at 50% 50%, rgba(0, 82, 255, 0.15) 0%, rgba(0, 20, 50, 0.4) 40%, rgba(3, 6, 17, 1) 80%);
-            z-index: -1; pointer-events: none;
-        }
-
-        /* 2. 3D / Tactile UI & Squircle */
-        .tactile-card {
-            background: linear-gradient(145deg, #0a1128, #050814);
-            border-radius: 32px;
-            box-shadow: 
-                15px 15px 40px rgba(0, 0, 0, 0.8),
-                -1px -1px 2px rgba(255, 255, 255, 0.05),
-                inset 0 1px 1px rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* 3. Soft UI (Синий градиентный блок) */
-        .soft-blue-block {
-            background: linear-gradient(135deg, #1e55ff 0%, #0a36cc 100%);
-            border-radius: 28px;
-            box-shadow: 
-                0 10px 30px rgba(30, 85, 255, 0.4),
-                inset 0 2px 5px rgba(255, 255, 255, 0.3),
-                inset 0 -2px 5px rgba(0, 0, 0, 0.2);
-        }
-
-        /* 4. Glassmorphism (Внутренние блоки) */
-        .glass-inner {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            box-shadow: inset 0 1px 1px rgba(255,255,255,0.05);
-        }
-
-        /* 5. Neumorphism (Пухлые кнопки) */
-        .btn-neumorph {
-            background: linear-gradient(145deg, #111a33, #070b18);
-            box-shadow: 
-                4px 4px 10px rgba(0, 0, 0, 0.6),
-                -2px -2px 6px rgba(255, 255, 255, 0.05),
-                inset 0 1px 1px rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.02);
-            transition: all 0.2s ease;
-        }
-        .btn-neumorph:active { box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.6); }
-
-        /* Кнопка действия */
-        .btn-send {
-            background: linear-gradient(135deg, #3b82f6, #0052ff);
-            box-shadow: 
-                0 6px 15px rgba(0, 82, 255, 0.4),
-                inset 0 2px 4px rgba(255, 255, 255, 0.4),
-                inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-            transition: all 0.2s ease;
-        }
-        .btn-send:active { transform: translateY(2px); box-shadow: 0 2px 5px rgba(0, 82, 255, 0.5); }
-
-        .text-profit { text-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
-        
-        input { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; }
-        input:focus { outline: none; border-color: #3b82f6; }
-        
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>VEXO Hub</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="p-4 md:p-8 flex justify-center pb-20">
-    <div class="aurora-bg"></div>
+<body data-theme="dark">
 
-    <!-- AUTH MODAL -->
-    <div id="auth-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="tactile-card p-8 w-full max-w-sm">
-            <h2 class="text-2xl font-bold mb-6 text-center text-white">Вход в терминал</h2>
-            <form id="auth-form" class="space-y-4">
-                <div>
-                    <label class="text-xs text-gray-400">Email</label>
-                    <input type="email" id="email" required class="w-full p-3 rounded-xl mt-1 text-sm">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-400">Пароль</label>
-                    <input type="password" id="password" required class="w-full p-3 rounded-xl mt-1 text-sm">
-                </div>
-                <button type="submit" class="w-full btn-send text-white font-bold py-3 rounded-xl mt-2 text-sm">Войти</button>
-                <p class="text-[10px] text-center text-gray-500 mt-4">Тест VIP: test@test.com / 123456</p>
-                <p id="auth-error" class="text-red-400 text-xs text-center hidden"></p>
-            </form>
+<div id="loader" class="screen active" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; position:fixed; inset:0; background:var(--bg); z-index:9999;">
+  <div class="spinner"></div>
+  <div style="font-size:16px; font-weight:800;">Загрузка...</div>
+</div>
+
+<!-- ЭКРАН БЛОКИРОВКИ -->
+<div id="sub-screen" class="screen" style="display:none; flex-direction:column; align-items:center; justify-content:center; height:100vh; text-align:center; padding:20px;">
+  <div class="logo-mark" style="width: 60px; height: 60px; font-size: 30px; margin-bottom: 20px;">V</div>
+  <h1 style="margin-bottom: 12px; font-size: 22px;">Доступ ограничен</h1>
+  <p style="color: var(--dim); margin-bottom: 24px;">Чтобы пользоваться VEXO Hub, подпишись на наш канал.</p>
+  <button class="btn btn-primary btn-block" onclick="subscribe()" style="margin-bottom: 12px;">Подписаться на канал</button>
+  <button class="btn btn-ghost btn-block" onclick="checkSub()">Я подписался, проверить</button>
+</div>
+
+<!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
+<div id="main-app" style="display:none;">
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <div class="app">
+    <header class="topbar glass-panel">
+      <div class="logo">
+        <div class="logo-mark">V</div>
+        <span class="logo-text">Hub</span>
+      </div>
+      <div style="display:flex; gap: 8px;">
+        <button class="btn btn-sm btn-ghost" id="themeBtn" style="padding: 6px; border-radius: 50%; width: 32px; height: 32px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+        <button class="btn btn-sm btn-ghost" id="adminBtn" style="display:none; padding: 6px 12px; font-size:12px; color:var(--red);">🛡 Админ</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- ГЛАВНАЯ -->
+      <section class="screen active" id="screen-home">
+        <div class="glass-card welcome-card">
+          <h1>Привет, P2P-шник! 👋</h1>
+          <p>Твой карманный помощник и маркетплейс.</p>
         </div>
+
+        <div class="menu-grid">
+          <div class="glass-card menu-item" onclick="show('calc')">
+            <div class="menu-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">🧮</div>
+            <div class="menu-title">Калькулятор</div>
+          </div>
+          <div class="glass-card menu-item" onclick="show('bl')">
+            <div class="menu-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">🚫</div>
+            <div class="menu-title">ЧС Бирж</div>
+          </div>
+          <div class="glass-card menu-item" onclick="show('market')">
+            <div class="menu-icon" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">🛒</div>
+            <div class="menu-title">Маркет</div>
+            <div class="menu-desc">Связки и Курсы</div>
+          </div>
+          <div class="glass-card menu-item" onclick="show('manuals')">
+            <div class="menu-icon" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">📚</div>
+            <div class="menu-title">Мануалы</div>
+          </div>
+          <div class="glass-card menu-item" onclick="show('terms')">
+            <div class="menu-icon" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa;">📖</div>
+            <div class="menu-title">Термины</div>
+          </div>
+          <div class="glass-card menu-item" onclick="show('about')">
+            <div class="menu-icon" style="background: rgba(236, 72, 153, 0.2); color: #f472b6;">🚀</div>
+            <div class="menu-title">О VEXO</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- КАЛЬКУЛЯТОР -->
+      <section class="screen" id="screen-calc">
+        <button class="btn btn-ghost btn-sm" onclick="show('home')" style="margin-bottom: 16px;">← Назад</button>
+        <div class="glass-card">
+          <h2>Калькулятор</h2>
+          <div class="field"><label>Цена покупки (₽)</label><input type="number" id="calc-buy" class="input" placeholder="85.00"></div>
+          <div class="field"><label>Цена продажи (₽)</label><input type="number" id="calc-sell" class="input" placeholder="90.00"></div>
+          <div class="field"><label>Объем (USDT)</label><input type="number" id="calc-amount" class="input" placeholder="1000"></div>
+          <div class="inner-card" style="margin-top: 16px;">
+            <div class="res-row"><span>Спред:</span> <strong id="res-spread">0 ₽</strong></div>
+            <div class="res-row"><span>Спред %:</span> <strong id="res-pct">0 %</strong></div>
+            <div class="res-row" style="border-top: 1px solid var(--glass-border); padding-top: 8px; margin-top: 8px;">
+              <span>Прибыль:</span> <strong id="res-profit" style="color: var(--grn); font-size: 18px;">0 ₽</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- МАРКЕТ -->
+      <section class="screen" id="screen-market">
+        <button class="btn btn-ghost btn-sm" onclick="show('home')" style="margin-bottom: 16px;">← Назад</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h2>🛒 Маркет</h2>
+          <button class="btn btn-primary btn-sm" onclick="show('market-sell')">+ Продать</button>
+        </div>
+        <div id="market-list"></div>
+      </section>
+
+      <!-- ФОРМА ПРОДАЖИ -->
+      <section class="screen" id="screen-market-sell">
+        <button class="btn btn-ghost btn-sm" onclick="show('market')" style="margin-bottom: 16px;">← Назад</button>
+        <div class="glass-card">
+          <h2>Выставить товар</h2>
+          <div class="field"><label>Категория</label>
+            <select id="sell-cat" class="input">
+              <option value="Связка">Связка</option>
+              <option value="Мануал">Мануал</option>
+              <option value="Курс">Курс</option>
+            </select>
+          </div>
+          <div class="field"><label>Название</label><input type="text" id="sell-title" class="input" placeholder="Название товара"></div>
+          <div class="field"><label>Описание</label><textarea id="sell-desc" class="input" placeholder="Что внутри, какие риски..."></textarea></div>
+          <div class="field"><label>Цена (₽ / $ / USDT)</label><input type="text" id="sell-price" class="input" placeholder="500 ₽"></div>
+          
+          <div class="field">
+            <label>Способы оплаты (можно выбрать несколько)</label>
+            <div class="payment-grid" id="sell-methods">
+              <div class="pay-method" data-method="RUB">
+                <div class="coin-icon rub">₽</div>
+                <span>RUB</span>
+              </div>
+              <div class="pay-method" data-method="USDT_TRC20">
+                <div class="coin-icon usdt">₮</div>
+                <span>USDT TRC-20</span>
+              </div>
+              <div class="pay-method" data-method="USDT_ERC20">
+                <div class="coin-icon usdt">₮</div>
+                <span>USDT ERC-20</span>
+              </div>
+              <div class="pay-method" data-method="BTC">
+                <div class="coin-icon btc">₿</div>
+                <span>BTC</span>
+              </div>
+              <div class="pay-method" data-method="TON">
+                <div class="coin-icon ton">T</div>
+                <span>TON</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="payment-details-container"></div>
+
+          <div class="field"><label>Ваш контакт (TG)</label><input type="text" id="sell-contact" class="input" placeholder="@username"></div>
+          <div class="error-msg" id="sell-error"></div>
+          <button class="btn btn-primary btn-block" onclick="submitProduct()">Отправить на модерацию</button>
+        </div>
+      </section>
+
+      <!-- ЧС БИРЖ -->
+      <section class="screen" id="screen-bl">
+        <button class="btn btn-ghost btn-sm" onclick="show('home')" style="margin-bottom: 16px;">← Назад</button>
+        <h2>🚫 Черный список</h2>
+        <div id="bl-list"></div>
+      </section>
+
+      <!-- МАНУАЛЫ -->
+      <section class="screen" id="screen-manuals">
+        <button class="btn btn-ghost btn-sm" onclick="show('home')" style="margin-bottom: 16px;">← Назад</button>
+        <h2>📚 Мануалы</h2>
+        <div id="manuals-list"></div>
+      </section>
+
+      <!-- ТЕРМИНЫ -->
+      <section class="screen" id="screen-terms">
+        <button class="btn btn-ghost btn-sm" onclick="show('home')" style="margin-bottom: 16px;">← Назад</button>
+        <h2>📖 Термины</h2>
+        <div id="terms-list"></div>
+      </section>
+
+      <!-- О ПРОЕКТЕ -->
+      <section class="screen" id="screen-about">
+        <button class="btn btn-ghost btn-sm" onclick="show('home')" style="margin-bottom: 16px;">← Назад</button>
+        <div class="glass-card" style="text-align: center; padding: 32px 16px;">
+          <div class="logo-mark" style="width: 60px; height: 60px; font-size: 30px; margin: 0 auto 16px;">V</div>
+          <h2 style="font-size: 24px; margin-bottom: 8px;">VEXO P2P</h2>
+          <p style="color: var(--dim); margin-bottom: 24px;">Безопасный обмен криптовалюты на рубли.</p>
+          <button class="btn btn-primary btn-block" onclick="openVexo()">Перейти в VEXO 🚀</button>
+        </div>
+      </section>
+
+      <!-- АДМИНКА -->
+      <section class="screen" id="screen-admin">
+        <button class="btn btn-ghost btn-sm" onclick="show('home')" style="margin-bottom: 16px;">← Назад</button>
+        <h2 style="color:var(--red)">🛡 Модерация</h2>
+        <div id="admin-list"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- МОДАЛКА ПОКУПКИ -->
+<div class="modal-overlay" id="buy-modal">
+  <div class="modal glass-panel">
+    <button class="modal-close" onclick="closeBuyModal()">×</button>
+    <h2 style="margin-bottom: 8px; font-size: 20px;" id="buy-title">Покупка</h2>
+    <p style="color: var(--dim); font-size: 13px; margin-bottom: 16px;" id="buy-price">—</p>
+    
+    <div id="buy-step-1">
+      <label style="font-size:13px; color:var(--dim); font-weight:600; margin-bottom:8px; display:block;">Выбери способ оплаты:</label>
+      <div id="buy-methods-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
     </div>
 
-    <!-- MAIN WRAPPER -->
-    <div class="w-full max-w-5xl">
-        
-        <!-- HEADER -->
-        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <div class="text-center md:text-left">
-                <h1 class="text-3xl font-extrabold tracking-tight">Arbitrage<span class="text-blue-500">Scanner</span></h1>
-                <p class="text-gray-400 text-sm mt-1">Institutional Grade Terminal</p>
-            </div>
-            
-            <div class="flex items-center gap-3">
-                <div id="user-info" class="hidden text-right bg-black/20 px-4 py-2 rounded-xl border border-white/5">
-                    <p class="text-[10px] text-gray-400 uppercase tracking-wider">Аккаунт</p>
-                    <p class="font-bold text-blue-400 text-sm" id="header-email">...</p>
-                </div>
-                
-                <!-- ПЕРЕКЛЮЧАТЕЛЬ ВКЛАДОК -->
-                <div class="flex bg-black/40 p-1 rounded-2xl border border-white/5">
-                    <button onclick="switchView('scanner')" id="tab-scanner" class="px-4 py-2 rounded-xl text-sm font-bold bg-white/10 text-white transition-all">Связки</button>
-                    <button onclick="switchView('profile')" id="tab-profile" class="px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:text-white transition-all">Профиль</button>
-                </div>
-                <button id="logout-btn" class="btn-neumorph px-4 py-2 rounded-xl text-sm font-semibold hidden text-gray-300">Выйти</button>
-            </div>
-        </header>
-
-        <!-- ================= VIEW: SCANNER ================= -->
-        <div id="view-scanner" class="view-section">
-            <div class="flex justify-between items-end mb-6">
-                <h2 class="text-xl font-bold">Live Opportunities</h2>
-                <span class="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold uppercase" id="current-tier">Tier</span>
-            </div>
-            
-            <div id="opportunities-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Карточки будут рендериться тут -->
-            </div>
-
-            <div id="empty-state" class="tactile-card p-12 text-center text-gray-400 mt-6 hidden">
-                <p class="text-lg font-bold">Сканируем стаканы...</p>
-                <p class="text-sm mt-2">Как только появится связка, она сразу отобразится здесь.</p>
-            </div>
-        </div>
-
-        <!-- ================= VIEW: PROFILE ================= -->
-        <div id="view-profile" class="view-section hidden">
-            <div class="tactile-card p-6 md:p-8 mb-6 flex flex-col md:flex-row items-center justify-between gap-6">
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-3xl">👤</div>
-                    <div>
-                        <p class="text-sm text-gray-400">Вы вошли как</p>
-                        <p class="font-bold text-white text-lg break-all" id="profile-email">...</p>
-                    </div>
-                </div>
-                <div class="text-center md:text-right">
-                    <p class="text-sm text-gray-400 mb-1">Текущий тариф</p>
-                    <p class="text-2xl font-extrabold text-blue-400 uppercase" id="profile-tier">...</p>
-                </div>
-            </div>
-
-            <h3 class="text-lg font-bold mb-4 ml-2">Улучшить тариф</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Free -->
-                <div class="tactile-card p-6 border border-white/5">
-                    <h4 class="text-lg font-bold text-gray-300">FREE</h4>
-                    <p class="text-3xl font-extrabold mt-2">$0</p>
-                    <ul class="text-xs text-gray-400 mt-4 space-y-2">
-                        <li>✔ Профит до 3%</li>
-                        <li>✔ Максимум 4 связки</li>
-                    </ul>
-                </div>
-                <!-- Standard -->
-                <div class="tactile-card p-6 border border-blue-500/30 relative">
-                    <div class="absolute top-0 right-0 bg-blue-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl">TOP</div>
-                    <h4 class="text-lg font-bold text-blue-400">STANDARD</h4>
-                    <p class="text-3xl font-extrabold mt-2 text-blue-100">$19<span class="text-sm font-normal text-gray-400">/мес</span></p>
-                    <ul class="text-xs text-gray-400 mt-4 space-y-2">
-                        <li>✔ Профит до 7%</li>
-                        <li>✔ До 15 связок</li>
-                        <li>✔ Реальное время</li>
-                    </ul>
-                </div>
-                <!-- Premium -->
-                <div class="tactile-card p-6 border border-purple-500/30">
-                    <h4 class="text-lg font-bold text-purple-400">PREMIUM (VIP)</h4>
-                    <p class="text-3xl font-extrabold mt-2 text-purple-100">$49<span class="text-sm font-normal text-gray-400">/мес</span></p>
-                    <ul class="text-xs text-gray-400 mt-4 space-y-2">
-                        <li>✔ Без ограничений профита</li>
-                        <li>✔ Весь рынок (Топ-20)</li>
-                        <li>✔ Спот + P2P арбитраж</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
+    <div id="buy-step-2" style="display:none;">
+      <div class="inner-card" style="margin-bottom:16px;">
+        <label style="font-size:12px; color:var(--dim); font-weight:700; text-transform:uppercase; margin-bottom:6px; display:block;">Реквизиты для оплаты:</label>
+        <div id="buy-details" style="font-family: monospace; font-size: 14px; word-break: break-all; color: var(--txt); font-weight:700;"></div>
+      </div>
+      <div class="inner-card" style="margin-bottom:16px;">
+        <label style="font-size:12px; color:var(--dim); font-weight:700; text-transform:uppercase; margin-bottom:6px; display:block;">Контакт автора:</label>
+        <div id="buy-contact" style="font-size:14px; font-weight:700;"></div>
+      </div>
+      <p style="font-size:12px; color:var(--dim); margin-bottom:16px;">
+        ⚠️ Оплата идёт напрямую автору. После оплаты нажми «Я оплатил» — автор получит уведомление.
+      </p>
+      <button class="btn btn-primary btn-block" onclick="confirmPaid()" style="margin-bottom:8px;">✅ Я оплатил</button>
     </div>
 
-    <script>
-        const socket = io();
-        
-        // UI Elements
-        const authModal = document.getElementById('auth-modal');
-        const authForm = document.getElementById('auth-form');
-        const userInfo = document.getElementById('user-info');
-        const headerEmail = document.getElementById('header-email');
-        const logoutBtn = document.getElementById('logout-btn');
-        const profileEmail = document.getElementById('profile-email');
-        const profileTier = document.getElementById('profile-tier');
-        const currentTier = document.getElementById('current-tier');
-        const oppsContainer = document.getElementById('opportunities-container');
-        const emptyState = document.getElementById('empty-state');
+    <div id="buy-step-3" style="display:none; text-align:center; padding: 16px 0;">
+      <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
+      <h3 style="margin-bottom: 8px;">Автор уведомлён!</h3>
+      <p style="color: var(--dim); font-size: 13px; margin-bottom: 16px;">Он свяжется с тобой после подтверждения оплаты.</p>
+    </div>
+  </div>
+</div>
 
-        // Переключение вкладок
-        function switchView(view) {
-            document.getElementById('view-scanner').classList.add('hidden');
-            document.getElementById('view-profile').classList.add('hidden');
-            document.getElementById('tab-scanner').className = 'px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:text-white transition-all';
-            document.getElementById('tab-profile').className = 'px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:text-white transition-all';
-
-            document.getElementById('view-' + view).classList.remove('hidden');
-            document.getElementById('tab-' + view).className = 'px-4 py-2 rounded-xl text-sm font-bold bg-white/10 text-white transition-all';
-        }
-
-        // Проверка авторизации
-        async function checkAuth() {
-            const res = await fetch('/api/me');
-            const data = await res.json();
-            
-            if (data.loggedIn) {
-                authModal.classList.add('hidden');
-                userInfo.classList.remove('hidden');
-                logoutBtn.classList.remove('hidden');
-                
-                headerEmail.textContent = data.email;
-                profileEmail.textContent = data.email;
-                profileTier.textContent = data.tier;
-                currentTier.textContent = data.tier;
-                
-                const colors = {
-                    free: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-                    standard: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-                    premium: 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                };
-                currentTier.className = `text-xs px-3 py-1.5 rounded-full border font-bold uppercase ${colors[data.tier]}`;
-            } else {
-                authModal.classList.remove('hidden');
-            }
-        }
-        checkAuth();
-
-        // Логин / Регистрация
-        authForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const err = document.getElementById('auth-error');
-            err.classList.add('hidden');
-
-            let res = await fetch('/api/login', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ email, password })
-            });
-
-            if (!res.ok) {
-                res = await fetch('/api/register', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email, password, tier: 'free' })
-                });
-                if (res.ok) {
-                    await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email, password }) });
-                } else {
-                    err.textContent = "Ошибка входа";
-                    err.classList.remove('hidden');
-                    return;
-                }
-            }
-            authModal.classList.add('hidden');
-            checkAuth();
-        });
-
-        logoutBtn.addEventListener('click', async () => {
-            await fetch('/api/logout', { method: 'POST' });
-            location.reload();
-        });
-
-        // Отрисовка карточек связок (Premium Design)
-        socket.on('data', (data) => {
-            const opps = data.opportunities;
-            if (!opps || opps.length === 0) return;
-
-            emptyState.classList.add('hidden');
-            oppsContainer.innerHTML = '';
-
-            opps.forEach((opt, index) => {
-                const isP2P = opt.type === 'P2P';
-                const typeBadge = isP2P 
-                    ? `<span class="px-2 py-1 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">P2P</span>`
-                    : `<span class="px-2 py-1 rounded-md text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/30">SPOT</span>`;
-                
-                const pricePrefix = isP2P ? '' : '$';
-                const volumeInfo = isP2P ? 'N/A' : `$${opt.liquidityUsdt.toFixed(0)}`;
-                const timeStr = opt.aliveTime > 0 ? `${opt.aliveTime}s ago` : 'Just Now';
-
-                // Создаем карточку в стиле Design Showcase
-                const card = document.createElement('div');
-                card.className = 'tactile-card p-4 animate-fade-in';
-                card.innerHTML = `
-                    <!-- Верхний блок: Градиент (Soft UI) -->
-                    <div class="soft-blue-block p-5 relative z-10 flex flex-col justify-between h-[160px]">
-                        <div class="flex justify-between items-start">
-                            <div class="flex items-center gap-2">
-                                <span class="text-xl font-bold text-white">${opt.pair}</span>
-                                ${typeBadge}
-                            </div>
-                            <span class="text-[10px] text-blue-200 bg-black/20 px-2 py-1 rounded-full">${timeStr}</span>
-                        </div>
-                        
-                        <div>
-                            <p class="text-[10px] text-blue-200 font-semibold tracking-wider uppercase mb-1">Чистая прибыль</p>
-                            <div class="flex items-end gap-2">
-                                <h3 class="text-4xl font-extrabold text-white text-profit">+${opt.profitPct.toFixed(2)}%</h3>
-                                <span class="text-sm font-semibold text-green-300 mb-1">~$${opt.profitUsd.toFixed(2)}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Нижний блок: Детали (Glassmorphism) -->
-                    <div class="mt-3 glass-inner p-4">
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="text-[10px] text-gray-400 uppercase">Купить на ${opt.buyEx}</span>
-                            <span class="text-[10px] text-gray-400 uppercase">Продать на ${opt.sellEx}</span>
-                        </div>
-                        
-                        <div class="flex justify-between items-center bg-black/30 p-3 rounded-xl border border-white/5 mb-3">
-                            <div class="text-center">
-                                <p class="font-bold text-white text-sm">${pricePrefix}${opt.buyPrice.toFixed(2)}</p>
-                            </div>
-                            <div class="text-blue-500 text-lg">➔</div>
-                            <div class="text-center">
-                                <p class="font-bold text-white text-sm">${pricePrefix}${opt.sellPrice.toFixed(2)}</p>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-between items-center">
-                            <div class="text-[10px] text-gray-400">
-                                Объем: <span class="text-white font-bold">${volumeInfo}</span> <br>
-                                Стакан: <span class="text-white font-bold">${opt.depth}</span>
-                            </div>
-                            
-                            <!-- Кнопка Trade (Neumorphism/Soft UI) -->
-                            <a href="${opt.url}" target="_blank" class="btn-send px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2">
-                                Trade
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                            </a>
-                        </div>
-                    </div>
-                `;
-                oppsContainer.appendChild(card);
-            });
-        });
-    </script>
+<script src="app.js"></script>
 </body>
 </html>
