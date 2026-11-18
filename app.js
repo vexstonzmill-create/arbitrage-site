@@ -1,30 +1,44 @@
-const API_URL = 'https://vxomanual.onrender.com'; 
-
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
-const initData = tg.initData;
+// Моковые данные для теста (потом сюда можно вставить реальные)
+const MOCK_MODULES = [
+    {
+        category: 'P2P Basics',
+        title: 'Введение в P2P',
+        content: 'Основы работы с P2P арбитражем. Как искать объявления и безопасно проводить сделки.'
+    },
+    {
+        category: 'Security',
+        title: 'Безопасность аккаунтов',
+        content: 'Как не потерять средства. Настройка 2FA, антидетект-браузеры и защита от скама.'
+    },
+    {
+        category: 'Strategy',
+        title: 'Стратегии 2024',
+        content: 'Актуальные связки, работа с банками и методы обхода лимитов.'
+    },
+    {
+        category: 'Guides',
+        title: 'Гайд по Binance',
+        content: 'Пошаговая инструкция по верификации и работе с P2P на крупнейшей бирже.'
+    }
+];
 
 const appDiv = document.getElementById('app');
 
-// 1. Проверяем, открыто ли приложение внутри Telegram
-if (!initData) {
-    appDiv.innerHTML = `
-        <div class="state-screen">
-            <div class="error-card">
-                <div class="card-icon">✈️</div>
-                <h2>Откройте в Telegram</h2>
-                <p>Это приложение работает только внутри Telegram.</p>
-            </div>
-            <a href="https://t.me/ТВОЙ_БОТ" style="display:block; width:100%; padding:16px; background:#22d3ee; color:#000; border-radius:14px; text-decoration:none; font-weight:600; box-sizing:border-box;">Открыть в Telegram</a>
-        </div>
-    `;
-    throw new Error('Приложение открыто вне Telegram');
+// Безопасная инициализация Telegram (если открыто в браузере — не упадет)
+let tg = null;
+let user = { first_name: 'U', photo_url: null };
+
+if (window.Telegram && window.Telegram.WebApp) {
+    tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+    if (tg.initDataUnsafe?.user) {
+        user = tg.initDataUnsafe.user;
+    }
 }
 
 // Рендер шапки (как в iOS Library)
 function renderHeader() {
-    const user = tg.initDataUnsafe?.user || {};
     const avatar = user.photo_url 
         ? `<img src="${user.photo_url}" class="avatar" alt="avatar">` 
         : `<div class="avatar-placeholder">${user.first_name ? user.first_name[0] : 'U'}</div>`;
@@ -44,78 +58,73 @@ function renderPage(contentHTML) {
     appDiv.innerHTML = renderHeader() + contentHTML;
 }
 
-// 2. Проверка доступа
-function checkAccess() {
-    // Красивый экран загрузки
+// Главная функция запуска
+function initApp() {
+    // Показываем красивый спиннер
     appDiv.innerHTML = `
         <div class="state-screen">
             <div class="spinner"></div>
-            <div class="state-text">Синхронизация...</div>
+            <div class="state-text">Загрузка библиотеки...</div>
         </div>
     `;
-    
-    fetch(`${API_URL}/api/auth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData })
-    })
-    .then(async res => {
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || `Ошибка сервера: ${res.status}`);
+
+    // Имитация загрузки (чтобы ты увидел спиннер)
+    setTimeout(() => {
+        try {
+            // Вместо запроса к серверу просто берем моковые данные
+            renderContent(MOCK_MODULES);
+        } catch (err) {
+            showError(err.message);
         }
-        return res.json();
-    })
-    .then(data => {
-        if (!data.subscribed) {
-            renderPage(`
-                <div class="library-card card-gradient-red">
-                    <div class="card-icon">📡</div>
-                    <div class="card-text">
-                        <h2>Шаг 1: Подписка</h2>
-                        <p>Подпишись на канал, чтобы получить доступ</p>
-                    </div>
-                </div>
-                <button class="btn btn-cyan" onclick="subscribe()">Подписаться</button>
-                <button class="btn btn-outline" onclick="checkAccess()">Я уже подписался</button>
-            `);
-        } else if (!data.paid) {
-            renderPage(`
-                <div class="library-card card-gradient-orange">
-                    <div class="card-icon">🔓</div>
-                    <div class="card-text">
-                        <h2>Шаг 2: Доступ</h2>
-                        <p>Подписка есть! Осталось купить доступ к базе</p>
-                    </div>
-                </div>
-                <div class="price-tag">$30 <span>пожизненно</span></div>
-                <button class="btn btn-pink" onclick="pay()">Купить доступ</button>
-            `);
-        } else {
-            loadContent();
-        }
-    })
-    .catch((err) => {
-        // Красивый экран ошибки
-        appDiv.innerHTML = `
-            <div class="state-screen">
-                <div class="error-card">
-                    <div class="card-icon">⚠️</div>
-                    <h2>Ошибка подключения</h2>
-                    <p>Не удалось получить данные от сервера.</p>
-                    <div class="error-details">${err.message}</div>
-                </div>
-                <button class="btn btn-outline" onclick="checkAccess()">Попробовать снова</button>
-            </div>
-        `;
-    });
+    }, 800); 
 }
 
-// Загрузка контента
-function loadContent() {
-    fetch(`${API_URL}/api/content`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+// Отрисовка контента
+function renderContent(modules) {
+    let html = `<h2 class="section-title">Your Modules</h2>`;
+    
+    if (!modules || modules.length === 0) {
+        html += `<p class="text-gray">Пока нет материалов.</p>`;
+    } else {
+        modules.forEach(mod => {
+            html += `
+                <div class="library-card card-gradient-blue">
+                    <div class="card-text">
+                        <div class="status-pill pill-cyan">${mod.category}</div>
+                        <h3>${mod.title}</h3>
+                        <p>${mod.content}</p>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    // Имитируем, что доступ открыт
+    renderPage(`
+        <div style="margin-bottom: 15px; display:flex; justify-content:flex-end;">
+            <span class="status-pill" style="color:#4ade80; border-color:#4ade80; background:rgba(74,222,128,0.1);">ДОСТУП ОТКРЫТ</span>
+        </div>
+        ${html}
+    `);
+}
+
+// Показ ошибки (в едином стиле)
+function showError(message) {
+    appDiv.innerHTML = `
+        <div class="state-screen">
+            <div class="error-card">
+                <div class="card-icon">⚠️</div>
+                <h2>Упс...</h2>
+                <p>Не удалось загрузить данные.</p>
+                <div class="error-details">${message}</div>
+            </div>
+            <button class="btn btn-outline" onclick="initApp()">Попробовать снова</button>
+        </div>
+    `;
+}
+
+// Запуск приложения
+initApp();aders: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData })
     })
     .then(async res => {
