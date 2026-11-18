@@ -1,114 +1,257 @@
-const appDiv = document.getElementById('app');
-
-// Твои структурированные модули с иконками
-const MOCK_MODULES = [
+// === ТВОИ МАНУАЛЫ (Структурированные) ===
+const KB_DATA = [
     {
-        icon: '🏦',
-        category: 'Банковские операции',
-        title: 'ПСБ и Альфа-Банк: Базовые параметры',
-        content: 'Наиболее стабильные банки для проведения транзакций. Рекомендуемый формат работы: высокие чеки, суммы от 20 000 руб. Прием платежей осуществляется через СБП. При достижении лимитов рекомендуется смена номера телефона и пауза в работе с картой на 3 дня. Оптимальная активность: 4-5 платежей в сутки. Рекомендуется оставлять остаток на карте 2 000–4 000 руб. Обязательны ежедневные бытовые траты (около 1 500 руб.) для имитации естественного финансового профиля. Период прогрева устройства: 3-4 дня, затем 2 дня паузы. Срок снятия блокировок: ПСБ — до 15 дней, Альфа-Банк — 1-2 дня.'
+        category: "Банки",
+        title: "Мануал ПСБ и Альфа",
+        content: "Стабильные банки. Приём по СБП до момента реза. 4-5 платежей в день. Остаток на карте 2-4к. Траты 1500р/день. Прогрев 3-4 дня. ПСБ блок снимается за 15 дней. Альфа - 14+ лет, день отлеги, прогрев 10-15 категорий, запуск с 9 до 00."
     },
     {
-        icon: '📱',
-        category: 'Банковские операции',
-        title: 'Регламент работы с Альфа-Банком',
-        content: 'Возрастной ценз: 14+. Требуется настройка доверенного устройства через личный кабинет (удаление посторонних устройств и веб-версии, отлега 24 часа). Интеграция с Alfa Smart и кэшбэк-сервисами. Первичное пополнение: 1 000 руб. через банкомат, прогрев на 10-15 категорий товаров. Рабочие лимиты: 15 СБП и 3 С2С с 09:00 до 00:00. Прием платежей от 15 000 руб. Снятие наличных рекомендуется через партнерские банкоматы (Газпромбанк, ПСБ).'
+        category: "Банки",
+        title: "Мануал Т-Банк",
+        content: "Включаемся от 10к по СБП. Интервал от 20 мин. Ровно 6 платежей. Далее по С2С 2 платежа. Снимаемся по 30-40к. Работа 10:00-20:00 (5/2). На ночь оставляем ~3к. Дроп 16+, лучше 18+."
     },
     {
-        icon: '💳',
-        category: 'Банковские операции',
-        title: 'Т-Банк: Регламент и вывод при УКБО',
-        content: 'Начало работы от 10 000 руб. через СБП с интервалом 20 минут (6 платежей). Затем переход на С2С (2 платежа). Снятие наличных в банкоматах Т-Банка суммами 30 000–40 000 руб. Рабочие часы: 10:00–20:00 (формат 5/2). Для вывода средств при ограничении (УКБО): заполнение заявления, нотариальное заверение копий паспорта, отправка в головной офис банка (г. Москва, ул. Хуторская 2-я, д.38А, стр. 26) почтой или курьерской службой. Обязательно наличие счета в стороннем банке.'
+        category: "Связки",
+        title: "Связка Bybit-HTX",
+        content: "Мейкер на Bybit, Тейкер на HTX. Объявление на Bybit по 80.6, на HTX продажа по 83.8. Передаем реквизиты. Перевод 30-40 мин. Чистыми ~4-4.5%. HTX в санкционном списке!"
     },
     {
-        icon: '📈',
-        category: 'Арбитраж и связки',
-        title: 'Классический P2P-арбитраж',
-        content: 'Заработок на разнице курсов покупки и продажи USDT в рамках одной биржи (например, Bybit). Механика: покупка актива по низкому курсу и выставление ордера на продажу по более высокому. Рекомендуемые банки для приема платежей: Сбер, ОТП, Озон, Альфа (возраст 18+). Средний спред на Bybit составляет 5-10%. При депозите 20-30 тыс. руб. доходность с одного оборота может составлять 1 500–3 000 руб. Время закрытия круга: 20-30 минут.'
+        category: "Связки",
+        title: "Обменник + Карты",
+        content: "Берем нал 12к, покупаем USDT по 80. Ищем покупателей по 85-88. Считаем: 150 USDT * 85 = 12750. Прибыль +750р. Сняли - повторили. 3 круга = 2250р."
     },
     {
-        icon: '👛',
-        category: 'Арбитраж и связки',
-        title: 'Связки с использованием TG Wallet и HTX',
-        content: 'Связка с HTX (без карт): Создание ордера на HTX с лимитами 1 000–3 000 руб., обмен USDT на TON в TG Wallet, выставление объявления на продажу TON с лимитами под сумму ордера. Средний спред: 4-8%. Связка Bybit - HTX: Покупка USDT на Bybit (мейкер) и продажа на HTX (тейкер) с оплатой через СБП. Прибыль формируется за счет разницы курсов, транзакция занимает 30-40 минут. Чистый спред составляет около 4-4.5%.'
+        category: "Безопасность",
+        title: "Почему карты блокируют",
+        content: "1. Короткий прогрев. 2. Дробление операций. 3. Резкое прекращение трат. 4. Переводы заграницу. 5. Переводы незнакомым. Всегда сохраняйте номер получателя в контакты перед переводом!"
     },
     {
-        icon: '🌍',
-        category: 'Арбитраж и связки',
-        title: 'Региональные направления',
-        content: 'Грузия: Работа через TBC Bank, BoG, Credo, Liberty. Использование схемы "белый треугольник". Средний спред 2-4%. Высокая ликвидность на покупку, низкая на продажу. Таиланд: Операции на HTX с тайским батом (THB). Покупка USDT по 33 THB, продажа по 40 THB. Потенциальная прибыль до 13 000–14 000 руб. с одной сделки. Таджикистан: Перевод рублей в сомони, покупка USDT на бирже. Спред 4-5%. Казахстан: Высокие спреды, но повышенный уровень мошенничества (риск фейковых чеков).'
+        category: "Термины",
+        title: "Словарь Арбитражника",
+        content: "КА - контрагент. Ферма - 1-3 чека в сутки. Агроферма - от 50к в сутки. Материал - карта/симка. Гном - дроп. Откуп - отправка средств после приема. Круг - работа с входящими и исходящими. Стяг - переводы между своими счетами."
     },
     {
-        icon: '🛡️',
-        category: 'Безопасность и комплаенс',
-        title: 'Причины блокировок и работа с 115-ФЗ',
-        content: 'Основные триггеры блокировок: отсутствие истории операций, дробление платежей, резкая смена финансового поведения, частые международные переводы. Для снятия ограничений по 115-ФЗ: подготовка пакета документов (скриншоты сделок, выписки, пояснения), подача в банк, при отказе — жалоба в интернет-приемную Центрального Банка РФ. Срок рассмотрения ЦБ: до 15 рабочих дней. Для снятия 161-ФЗ (передача данных между банками) необходимо обращение в службу безопасности банка-инициатора ограничений.'
-    },
-    {
-        icon: '⚠️',
-        category: 'Безопасность и комплаенс',
-        title: 'Противодействие мошенничеству',
-        content: 'Схема с фейковым чеком: контрагент присылает поддельный документ об оплате и требует отпустить активы. Правило: никогда не отпускать сделку до фактического зачисления средств на счет. Схема с "приватным ордером" Bybit Pay: мошенники перенаправляют на ончейн-переводы. Схема с электронной почтой: злоумышленник просит отправить email в ордер, после чего жертва переводит средства на чужой счет. Рекомендация: проверять совпадение имени плательщика, запрашивать видео-подтверждение перевода и работать только с проверенными контрагентами.'
-    },
-    {
-        icon: '⭐',
-        category: 'Безопасность и комплаенс',
-        title: 'Управление репутацией на Bybit',
-        content: 'Процедура удаления негативного отзыва при отсутствии нарушений со стороны продавца: 1) Обращение в справочный центр Bybit (раздел P2P -> Удаление отзывов). 2) Предоставление UID, номера ордера, скриншота и обоснования. 3) Предоставление переписки (при обвинении в грубости) или подтверждений из банка (при задержке платежа). Срок первичного ответа: до 7 дней. Вероятность одобрения: 70-80%. Не рекомендуется злоупотреблять запросами во избежание блокировки аккаунта.'
-    },
-    {
-        icon: '📖',
-        category: 'Словарь терминов',
-        title: 'Профессиональная терминология P2P',
-        content: 'КА — Контрагент (постоянный клиент). Ферма — вид работы с приемом 1-3 чеков в сутки. Агроферма — прием от 50 до 300 тыс. руб. в сутки. Материал — карта или сим-карта, используемая в работе. Площадка — платежная система для обработки платежей. Страховой депозит — замороженные средства для обеспечения безопасности сделок. Круг — цикл работы с входящими и исходящими платежами. Прогрев — имитация реальной жизни (покупки по карте). Дроп — лицо, предоставляющее доступ к своим банковским счетам. Репро-банк — банк с высоким лимитом транзакций (до 100 млн руб. в год).'
+        category: "Апелляции",
+        title: "Как выигрывать споры",
+        content: "Перевод не на тот банк = почти гарантированная потеря. Рисуйте видео, что платеж не поступал. Не выдумывайте данные и не подделывайте видео с 'единым переводом' - это бан."
     }
 ];
 
-// Функция запуска (показывает спиннер)
-function initApp() {
-    appDiv.innerHTML = `
-        <div class="state-screen">
-            <div class="spinner"></div>
-            <div class="state-text">Загрузка базы знаний...</div>
-        </div>
-    `;
+const API_URL = window.location.origin; // Будет работать и локально, и на Render
 
-    // Имитация загрузки (1 секунда)
-    setTimeout(() => {
-        renderContent();
-    }, 1000); 
+const API = {
+    token: () => localStorage.getItem('vexo_token'),
+    user: () => { try { return JSON.parse(localStorage.getItem('vexo_user')); } catch { return null; } },
+    async req(method, path, body) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (this.token()) headers.Authorization = 'Bearer ' + this.token();
+        const res = await fetch(API_URL + '/api' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Error');
+        return data;
+    }
+};
+
+function toast(msg, type = 'info') {
+    const c = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    c.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
 }
 
-// Отрисовка контента
-function renderContent() {
-    let html = `
-        <div class="header">
-            <div>
-                <h1 class="title">Library</h1>
-                <div class="subtitle">vxo | 767 P2P</div>
+// Тема
+let currentTheme = localStorage.getItem('vexo_theme') || 'dark';
+document.body.setAttribute('data-theme', currentTheme);
+window.toggleTheme = () => {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('vexo_theme', currentTheme);
+};
+
+// Авторизация
+function updateAuthUI() {
+    const u = API.user();
+    const adminBtn = document.getElementById('adminBnBtn');
+    if (u && u.role === 'admin') {
+        adminBtn.style.display = 'flex';
+    } else {
+        adminBtn.style.display = 'none';
+    }
+}
+
+document.getElementById('tgLoginBtn').onclick = async () => {
+    if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
+        return toast('Откройте приложение в Telegram', 'error');
+    }
+    try {
+        const res = await API.req('POST', '/auth/telegram', { initData: window.Telegram.WebApp.initData });
+        localStorage.setItem('vexo_token', res.token);
+        localStorage.setItem('vexo_user', JSON.stringify(res.user));
+        document.getElementById('authModal').classList.remove('active');
+        updateAuthUI();
+        renderProfile();
+        toast('Вход выполнен!', 'success');
+    } catch(e) { toast(e.message, 'error'); }
+};
+
+document.getElementById('emailLoginBtn').onclick = async () => {
+    const login = document.getElementById('loginInput').value;
+    const password = document.getElementById('passInput').value;
+    try {
+        const res = await API.req('POST', '/auth/login', { login, password });
+        localStorage.setItem('vexo_token', res.token);
+        localStorage.setItem('vexo_user', JSON.stringify(res.user));
+        document.getElementById('authModal').classList.remove('active');
+        updateAuthUI();
+        renderProfile();
+        toast('Вход выполнен!', 'success');
+    } catch(e) { toast('Неверный логин или пароль', 'error'); }
+};
+
+// Рендер Базы Знаний
+let currentCategory = 'all';
+function renderKB() {
+    const container = document.getElementById('kbContent');
+    const filtered = currentCategory === 'all' ? KB_DATA : KB_DATA.filter(k => k.category === currentCategory);
+    
+    container.innerHTML = filtered.map(k => `
+        <div class="glass-card" style="margin-bottom: 12px;">
+            <span class="badge-face" style="margin-bottom: 8px; display: inline-block;">${k.category}</span>
+            <h3 style="font-size: 18px; margin-bottom: 8px;">${k.title}</h3>
+            <p style="font-size: 14px; color: var(--dim); line-height: 1.5;">${k.content}</p>
+        </div>
+    `).join('');
+}
+
+document.querySelectorAll('#kbCategories .icon-chip').forEach(chip => {
+    chip.onclick = () => {
+        document.querySelectorAll('#kbCategories .icon-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentCategory = chip.dataset.cat;
+        renderKB();
+    };
+});
+
+// Рендер Профиля
+async function renderProfile() {
+    const container = document.getElementById('profileContent');
+    let u = API.user();
+    
+    if (!u) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div style="font-size: 40px; margin-bottom: 16px;">🔒</div>
+                <p style="margin-bottom: 16px;">Войдите, чтобы получить доступ</p>
+                <button class="btn btn-primary" onclick="document.getElementById('authModal').classList.add('active')">Войти</button>
             </div>
-            <div class="avatar-placeholder">V</div>
-        </div>
-    `;
-    
-    // Бейдж "Доступ открыт"
-    html += `
-        <div style="margin-bottom: 15px; display:flex; justify-content:flex-end;">
-            <span class="status-pill pill-green">ДОСТУП ОТКРЫТ</span>
-        </div>
-    `;
+        `;
+        return;
+    }
 
-    html += `<h2 class="section-title">База знаний</h2>`;
-    
-    // Генерация карточек с иконками
-    MOCK_MODULES.forEach((mod, index) => {
-        // Чередуем цвета градиентов для красоты (синий, красный, оранжевый, фиолетовый)
-        const gradients = ['card-gradient-blue', 'card-gradient-red', 'card-gradient-orange', 'card-gradient-purple'];
-        const currentGradient = gradients[index % gradients.length];
+    // Обновляем данные с сервера
+    try {
+        const res = await API.req('GET', '/users/me');
+        localStorage.setItem('vexo_user', JSON.stringify(res.user));
+        u = res.user;
+    } catch(e) {}
 
-        html += `
-            <div class="library-card ${currentGradient}">
-                <div class="card-icon">${mod.icon}</div>
+    const isPaid = u.isPaid || u.role === 'admin';
+
+    container.innerHTML = `
+        <div class="glass-card profile-header-card">
+            <div class="profile-info-left">
+                <div class="avatar lg">${u.displayName[0].toUpperCase()}</div>
+                <div>
+                    <h2 class="profile-name-row">${u.displayName}</h2>
+                    <div style="font-size:13px;color:var(--dim);">@${u.username}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card" style="text-align: center; padding: 24px;">
+            <h3 style="margin-bottom: 12px;">Статус доступа</h3>
+            <div style="font-size: 24px; font-weight: 900; color: ${isPaid ? 'var(--grn)' : 'var(--red)'}; margin-bottom: 16px;">
+                ${isPaid ? 'ОПЛАЧЕНО' : 'ЗАКРЫТ'}
+            </div>
+            ${!isPaid ? `
+                <p style="font-size: 14px; color: var(--dim); margin-bottom: 16px;">Отправьте заявку на покупку доступа. Админ подтвердит оплату и откроет базу.</p>
+                <button class="btn btn-primary btn-block" onclick="requestAccess()">Купить доступ (30$)</button>
+            ` : `
+                <p style="font-size: 14px; color: var(--grn);">Вам доступны все материалы!</p>
+            `}
+        </div>
+
+        <button class="btn btn-ghost btn-block" style="margin-top: 24px; color: var(--red);" onclick="localStorage.clear(); location.reload();">Выйти</button>
+    `;
+}
+
+// Создание заявки
+window.requestAccess = async () => {
+    const u = API.user();
+    try {
+        await API.req('POST', '/requests/access', { userId: u.id, userName: u.username });
+        toast('Заявка отправлена админу!', 'success');
+    } catch(e) { toast('Ошибка отправки', 'error'); }
+};
+
+// Админка
+async function renderAdmin() {
+    const container = document.getElementById('adminRequestsList');
+    try {
+        const { requests } = await API.req('GET', '/admin/requests');
+        if (!requests.length) {
+            container.innerHTML = '<div class="empty-state">Нет активных заявок</div>';
+            return;
+        }
+        
+        container.innerHTML = requests.map(r => `
+            <div class="ad-card" style="padding: 16px; margin-bottom: 12px;">
+                <div style="font-weight: 800; margin-bottom: 4px;">@${r.userName} (ID: ${r.userId})</div>
+                <div style="font-size: 12px; color: var(--dim); margin-bottom: 12px;">${new Date(r.date).toLocaleString('ru-RU')}</div>
+                <button class="btn btn-primary btn-sm" onclick="approveUser(${r.userId})">Одобрить</button>
+            </div>
+        `).join('');
+    } catch(e) { container.innerHTML = '<div class="empty-state">Ошибка загрузки</div>'; }
+}
+
+window.approveUser = async (userId) => {
+    try {
+        await API.req('POST', '/admin/approve', { userId });
+        toast('Доступ выдан!', 'success');
+        renderAdmin();
+    } catch(e) { toast('Ошибка', 'error'); }
+};
+
+// Навигация
+window.show = (screenId) => {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + screenId).classList.add('active');
+    
+    document.querySelectorAll('.bn-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.bn-btn[data-screen="${screenId}"]`)?.classList.add('active');
+
+    if (screenId === 'profile') renderProfile();
+    if (screenId === 'admin') renderAdmin();
+};
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        document.getElementById('loader').classList.add('hidden-loader');
+    }, 800);
+
+    renderKB();
+    updateAuthUI();
+    
+    // Автовход через ТГ
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+        document.getElementById('tgLoginBtn').click();
+    }
+});d.icon}</div>
                 <div class="card-text">
                     <div class="status-pill pill-cyan">${mod.category}</div>
                     <h3>${mod.title}</h3>

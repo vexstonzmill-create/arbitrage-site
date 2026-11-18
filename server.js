@@ -4,41 +4,55 @@ const crypto = require('crypto');
 const axios = require('axios');
 const { Pool } = require('pg');
 
-// ==========================================
-// ⚠️ ВСТАВЬ СВОИ ДАННЫЕ СЮДА:
-const CONFIG = {
-  BOT_TOKEN: '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE', // Перевыпусти через BotFather /revoke!
-  CHANNEL_ID: '-1004468086212',
-  DATABASE_URL: 'postgresql://neondb_owner:npg_xN9OFsw6uCMe@ep-solitary-cloud-bahn17dh-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
-  PROVIDER_TOKEN: '' // Вставь токен провайдера платежей из BotFather -> Payments
-};
-// ==========================================
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
+
+// ================= НАСТРОЙКИ =================
+const CONFIG = {
+  BOT_TOKEN: '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE', // Твой токен бота
+  ADMIN_TG_ID: 123456789, // ВСТАВЬ СВОЙ TG ID (узнать у @userinfobot)
+  DATABASE_URL: 'postgresql://neondb_owner:npg_xN9OFsw6uCMe@ep-solitary-cloud-bahn17dh-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+};
+// ============================================
 
 const pool = new Pool({
   connectionString: CONFIG.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// Проверка подписки на канал
-async function checkSubscription(userId) {
+// Создаем таблицы при старте, если их нет
+async function initDB() {
   try {
-    const res = await axios.get(`https://api.telegram.org/bot${CONFIG.BOT_TOKEN}/getChatMember`, {
-      params: { chat_id: CONFIG.CHANNEL_ID, user_id: userId }
-    });
-    return ['member', 'administrator', 'creator'].includes(res.data.result.status);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id BIGINT PRIMARY KEY,
+        username TEXT,
+        display_name TEXT,
+        avatar_url TEXT,
+        role TEXT DEFAULT 'user',
+        is_paid BOOLEAN DEFAULT false
+      );
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS access_requests (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE(user_id)
+      );
+    `);
+    console.log('✅ База данных инициализирована (таблицы готовы)');
   } catch (e) {
-    console.error('Ошибка проверки подписки:', e.message);
-    return false;
+    console.error('❌ Ошибка инициализации БД:', e.message);
   }
 }
+initDB();
 
-// Валидация данных от Telegram
+// Валидация Telegram
 function validateTelegramData(initData) {
+  if (!initData) return false;
   const urlParams = new URLSearchParams(initData);
   const hash = urlParams.get('hash');
   urlParams.delete('hash');
@@ -49,101 +63,123 @@ function validateTelegramData(initData) {
   return crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex') === hash;
 }
 
-// API: Авторизация
-app.post('/api/auth', async (req, res) => {
+// 1. Авторизация через Telegram
+app.post('/api/auth/telegram', async (req, res) => {
   const { initData } = req.body;
   if (!validateTelegramData(initData)) return res.status(401).json({ error: 'Invalid data' });
 
   const tgUser = JSON.parse(new URLSearchParams(initData).get('user'));
+  const isAdmin = Number(tgUser.id) === Number(CONFIG.ADMIN_TG_ID);
 
   try {
-    let userRes = await pool.query('SELECT * FROM users WHERE tg_id = $1', [tgUser.id]);
-    let user = userRes.rows[0];
-
-    if (!user) {
-      const insert = await pool.query(
-        'INSERT INTO users (tg_id, username, first_name) VALUES ($1, $2, $3) RETURNING *',
-        [tgUser.id, tgUser.username || '', tgUser.first_name || '']
-      );
-      user = insert.rows[0];
-    }
-
-    const isSubscribed = await checkSubscription(tgUser.id);
-    res.json({ subscribed: isSubscribed, paid: user.is_paid });
+    // Вставляем или обновляем пользователя
+    const upsertQuery = `
+      INSERT INTO users (id, username, display_name, avatar_url, role) 
+      VALUES ($1, $2, $3, $4, $5) 
+      ON CONFLICT (id) DO UPDATE SET 
+        username = EXCLUDED.username, 
+        display_name = EXCLUDED.display_name, 
+        avatar_url = EXCLUDED.avatar_url,
+        role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END
+      RETURNING *;
+    `;
+    const role = isAdmin ? 'admin' : 'user';
+    const result = await pool.query(upsertQuery, [
+      tgUser.id, 
+      tgUser.username || `user_${tgUser.id}`, 
+      tgUser.first_name || 'User', 
+      tgUser.photo_url || null,
+      role
+    ]);
+    
+    const user = result.rows[0];
+    res.json({ token: 'mock_token_' + user.id, user: mapUser(user) });
   } catch (e) {
-    console.error('Auth error:', e.message);
+    console.error('Auth Error:', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// API: Получение контента
-app.post('/api/content', async (req, res) => {
-  const { initData } = req.body;
-  if (!validateTelegramData(initData)) return res.status(401).json({ error: 'Invalid data' });
-
-  const tgUser = JSON.parse(new URLSearchParams(initData).get('user'));
-  try {
-    const userRes = await pool.query('SELECT is_paid FROM users WHERE tg_id = $1', [tgUser.id]);
-    if (!userRes.rows[0]?.is_paid) return res.status(403).json({ error: 'Need payment' });
-
-    const modules = await pool.query('SELECT * FROM modules ORDER BY sort_order ASC');
-    res.json({ modules: modules.rows });
-  } catch (e) {
-    console.error('Content error:', e.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// API: Создание счета на оплату
-app.post('/api/invoice', async (req, res) => {
-  const { initData } = req.body;
-  if (!validateTelegramData(initData)) return res.status(401).json({ error: 'Invalid data' });
-  const tgUser = JSON.parse(new URLSearchParams(initData).get('user'));
-
-  try {
-    const response = await axios.post(`https://api.telegram.org/bot${CONFIG.BOT_TOKEN}/createInvoiceLink`, {
-      title: 'Доступ к vxo | 767',
-      description: 'Пожизненный доступ к базе знаний P2P',
-      payload: `user_${tgUser.id}`,
-      provider_token: CONFIG.PROVIDER_TOKEN,
-      currency: 'USD',
-      prices: [{ label: 'Доступ', amount: 3000 }] // 30.00 USD в центах
-    });
-    res.json({ link: response.data.result });
-  } catch (e) {
-    console.error('Invoice error:', e.response?.data || e.message);
-    res.status(500).json({ error: 'Ошибка создания счета' });
-  }
-});
-
-// API: Вебхук от Telegram (успешные платежи)
-app.post('/api/webhook', async (req, res) => {
-  const message = req.body;
-
-  if (message.pre_checkout_query) {
+// 2. Обычная авторизация (для браузера)
+app.post('/api/auth/login', async (req, res) => {
+  const { login, password } = req.body;
+  if (login === 'admin' && password === 'admin') {
     try {
-      await axios.post(`https://api.telegram.org/bot${CONFIG.BOT_TOKEN}/answerPreCheckoutQuery`, {
-        pre_checkout_query_id: message.pre_checkout_query.id,
-        ok: true
-      });
-    } catch (e) {
-      console.error('PreCheckout error:', e.message);
-    }
+      const result = await pool.query(`
+        INSERT INTO users (id, username, display_name, role, is_paid) 
+        VALUES ($1, 'admin', 'Admin', 'admin', true) 
+        ON CONFLICT (id) DO UPDATE SET role = 'admin', is_paid = true
+        RETURNING *;
+      `, [CONFIG.ADMIN_TG_ID]);
+      res.json({ token: 'mock_token_' + CONFIG.ADMIN_TG_ID, user: mapUser(result.rows[0]) });
+    } catch(e) { res.status(500).json({ error: 'DB error' }); }
+  } else {
+    res.status(401).json({ error: 'Invalid credentials' });
   }
-
-  if (message.message?.successful_payment) {
-    try {
-      const payload = message.message.successful_payment.invoice_payload; // "user_12345"
-      const tgId = payload.split('_')[1];
-      await pool.query('UPDATE users SET is_paid = true WHERE tg_id = $1', [tgId]);
-      console.log(`Payment success for user ${tgId}`);
-    } catch (e) {
-      console.error('Payment save error:', e.message);
-    }
-  }
-
-  res.sendStatus(200);
 });
+
+// 3. Создание заявки на доступ
+app.post('/api/requests/access', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO access_requests (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
+      [userId]
+    );
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: 'Error creating request' }); }
+});
+
+// 4. Получить заявки (для админа)
+app.get('/api/admin/requests', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT ar.user_id, ar.created_at, u.username, u.display_name 
+      FROM access_requests ar
+      JOIN users u ON ar.user_id = u.id
+      ORDER BY ar.created_at DESC
+    `);
+    res.json({ requests: result.rows });
+  } catch(e) { res.status(500).json({ error: 'DB error' }); }
+});
+
+// 5. Одобрить заявку (для админа)
+app.post('/api/admin/approve', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    // Выдаем доступ
+    await pool.query('UPDATE users SET is_paid = true WHERE id = $1', [userId]);
+    // Удаляем заявку
+    await pool.query('DELETE FROM access_requests WHERE user_id = $1', [userId]);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: 'DB error' }); }
+});
+
+// 6. Проверка профиля
+app.get('/api/users/me', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const userId = parseInt(token?.replace('mock_token_', ''));
+  
+  if (!userId || isNaN(userId)) return res.json({ user: { id: 0, role: 'guest', isPaid: false } });
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    if (result.rows.length === 0) return res.json({ user: { id: 0, role: 'guest', isPaid: false } });
+    res.json({ user: mapUser(result.rows[0]) });
+  } catch(e) { res.status(500).json({ error: 'DB error' }); }
+});
+
+// Маппер для фронтенда (чтобы поля совпадали с app.js)
+function mapUser(dbUser) {
+  return {
+    id: Number(dbUser.id),
+    username: dbUser.username,
+    displayName: dbUser.display_name,
+    avatarUrl: dbUser.avatar_url,
+    role: dbUser.role,
+    isPaid: dbUser.is_paid
+  };
+}
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`vxo | 767 Backend running on port ${PORT}`));
+app.listen(PORT, () => console.log(`vxo Backend running on port ${PORT}`));

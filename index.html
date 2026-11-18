@@ -2,21 +2,99 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>vxo | 767</title>
-    <!-- Подключаем Telegram WebApp API -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>vxo | 767 P2P База Знаний</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Подключаем наши стили -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <!-- Сюда app.js будет вставлять контент -->
-    <div id="app">
-        <div class="loading">Загрузка...</div>
+    <!-- Лоадер -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <div class="loader-text">Загрузка базы...</div>
     </div>
 
-    <!-- Подключаем нашу логику -->
+    <div class="app">
+        <div class="main">
+            <div class="topbar">
+                <button class="menu-btn" id="menuBtn">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+                </button>
+                <div class="user-greeting">
+                    <span class="greeting-text" id="greetingText">База знаний</span>
+                    <span class="user-name" id="topbarName">vxo | 767</span>
+                </div>
+                <button class="icon-btn" onclick="toggleTheme()">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                </button>
+            </div>
+
+            <div class="content">
+                <!-- ЭКРАН 1: БАЗА ЗНАНИЙ -->
+                <div id="screen-home" class="screen active">
+                    <h2 style="margin-bottom: 16px; font-size: 22px;">Мануалы и схемы</h2>
+                    
+                    <!-- Категории -->
+                    <div class="icon-scroll" style="margin-bottom: 20px;" id="kbCategories">
+                        <div class="icon-chip active" data-cat="all">Все</div>
+                        <div class="icon-chip" data-cat="Банки">Банки</div>
+                        <div class="icon-chip" data-cat="Связки">Связки</div>
+                        <div class="icon-chip" data-cat="Безопасность">Безопасность</div>
+                        <div class="icon-chip" data-cat="Термины">Термины</div>
+                    </div>
+
+                    <div id="kbContent" class="bento-grid" style="grid-template-columns: 1fr;">
+                        <!-- Сюда рендерятся карточки -->
+                    </div>
+                </div>
+
+                <!-- ЭКРАН 2: ПРОФИЛЬ -->
+                <div id="screen-profile" class="screen">
+                    <div id="profileContent"></div>
+                </div>
+
+                <!-- ЭКРАН 3: АДМИНКА -->
+                <div id="screen-admin" class="screen">
+                    <h2 style="margin-bottom: 16px;">Заявки на доступ</h2>
+                    <div id="adminRequestsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- НИЖНЯЯ НАВИГАЦИЯ -->
+    <div class="bottom-nav">
+        <button class="bn-btn active" data-screen="home" onclick="show('home')">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+            <span>База</span>
+        </button>
+        <button class="bn-btn" data-screen="profile" onclick="show('profile')">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Профиль</span>
+        </button>
+        <button class="bn-btn" id="adminBnBtn" data-screen="admin" onclick="show('admin')" style="display: none;">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>Админ</span>
+        </button>
+    </div>
+
+    <!-- Модалка авторизации -->
+    <div id="authModal" class="modal-overlay">
+        <div class="modal">
+            <h3 style="text-align: center; margin-bottom: 16px;">Вход</h3>
+            <p style="text-align: center; color: var(--dim); margin-bottom: 20px; font-size: 14px;">Войдите через Telegram или по логину (для теста: admin/admin)</p>
+            <button class="btn btn-primary btn-block" id="tgLoginBtn" style="margin-bottom: 12px;">Войти через Telegram</button>
+            <div class="field">
+                <input type="text" id="loginInput" class="input" placeholder="Логин">
+            </div>
+            <div class="field">
+                <input type="password" id="passInput" class="input" placeholder="Пароль">
+            </div>
+            <button class="btn btn-block" id="emailLoginBtn">Войти</button>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
     <script src="app.js"></script>
 </body>
 </html>
