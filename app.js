@@ -1,13 +1,25 @@
-const API_URL = 'https://vxomanual.onrender.com'; // Ссылка на твой Render
+const API_URL = 'https://vxomanual.onrender.com'; 
 
 const tg = window.Telegram.WebApp;
 tg.ready();
-tg.expand(); // Разворачиваем на весь экран
+tg.expand();
 const initData = tg.initData;
 
 const appDiv = document.getElementById('app');
 
-// Рендер шапки (как в iOS Library)
+// 1. Проверяем, открыто ли приложение внутри Telegram
+if (!initData) {
+    appDiv.innerHTML = `
+        <div style="text-align:center; padding: 40px 20px;">
+            <h1 style="color:#fff; font-size:24px;">Откройте в Telegram</h1>
+            <p style="color:#8e8e93; font-size:16px;">Это приложение работает только внутри Telegram.</p>
+            <a href="https://t.me/ТВОЙ_БОТ" style="display:inline-block; margin-top:20px; padding:14px 28px; background:#22d3ee; color:#000; border-radius:12px; text-decoration:none; font-weight:600;">Открыть в Telegram</a>
+        </div>
+    `;
+    throw new Error('Приложение открыто вне Telegram');
+}
+
+// Рендер шапки
 function renderHeader() {
     const user = tg.initDataUnsafe?.user || {};
     const avatar = user.photo_url 
@@ -29,15 +41,21 @@ function renderPage(contentHTML) {
     appDiv.innerHTML = renderHeader() + contentHTML;
 }
 
-// 1. Проверка доступа
+// 2. Проверка доступа
 function checkAccess() {
+    appDiv.innerHTML = `<div class="loading" style="color:#22d3ee; text-align:center; margin-top:50px;">Загрузка...</div>`;
+    
     fetch(`${API_URL}/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData })
     })
-    .then(res => {
-        if (!res.ok) throw new Error('Network error');
+    .then(async res => {
+        // Если сервер вернул ошибку, читаем её
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Ошибка сервера: ${res.status}`);
+        }
         return res.json();
     })
     .then(data => {
@@ -69,20 +87,30 @@ function checkAccess() {
             loadContent();
         }
     })
-    .catch(() => {
-        appDiv.innerHTML = `<div class="error">Ошибка подключения. Проверьте интернет.</div>`;
+    .catch((err) => {
+        // Показываем РЕАЛЬНУЮ ошибку на экране
+        appDiv.innerHTML = `
+            <div class="error" style="text-align:center; margin-top:50px;">
+                <p style="color:#ef4444; font-weight:bold; margin-bottom:10px;">Ошибка:</p>
+                <p style="color:#fff; background:rgba(255,255,255,0.1); padding:10px; border-radius:8px; font-size:14px;">${err.message}</p>
+                <button class="btn btn-outline" onclick="checkAccess()" style="margin-top:20px;">Попробовать снова</button>
+            </div>
+        `;
     });
 }
 
-// 2. Загрузка контента
+// Загрузка контента
 function loadContent() {
     fetch(`${API_URL}/api/content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData })
     })
-    .then(res => {
-        if (!res.ok) throw new Error('Access denied');
+    .then(async res => {
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Ошибка: ${res.status}`);
+        }
         return res.json();
     })
     .then(data => {
@@ -105,35 +133,36 @@ function loadContent() {
         }
         renderPage(html);
     })
-    .catch(() => {
-        renderPage(`<div class="error">Ошибка загрузки контента</div>`);
+    .catch((err) => {
+        renderPage(`<div class="error">Ошибка загрузки: ${err.message}</div>`);
     });
 }
 
-// Кнопки
 function subscribe() {
-    tg.openTelegramLink('https://t.me/vxo_767'); // Замени на ссылку канала
+    tg.openTelegramLink('https://t.me/vxo_767'); 
 }
 
 function pay() {
-    tg.showPopup({
-        title: 'Оплата',
-        message: 'Переход к оплате...',
-        buttons: [{type: 'close'}]
-    });
-    
     fetch(`${API_URL}/api/invoice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData })
     })
-    .then(res => res.json())
+    .then(async res => {
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Ошибка: ${res.status}`);
+        }
+        return res.json();
+    })
     .then(data => {
         if (data.link) tg.openInvoice(data.link, (status) => {
-            if (status === 'paid') checkAccess(); // Обновляем экран после оплаты
+            if (status === 'paid') checkAccess();
         });
     })
-    .catch(() => tg.showAlert('Ошибка создания счета'));
+    .catch((err) => {
+        tg.showAlert(err.message || 'Ошибка создания счета');
+    });
 }
 
 // Старт
