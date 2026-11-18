@@ -37,7 +37,7 @@ const KB_DATA = [
     }
 ];
 
-const API_URL = window.location.origin; // Будет работать и локально, и на Render
+const API_URL = window.location.origin;
 
 const API = {
     token: () => localStorage.getItem('vexo_token'),
@@ -150,7 +150,6 @@ async function renderProfile() {
         return;
     }
 
-    // Обновляем данные с сервера
     try {
         const res = await API.req('GET', '/users/me');
         localStorage.setItem('vexo_user', JSON.stringify(res.user));
@@ -208,9 +207,9 @@ async function renderAdmin() {
         
         container.innerHTML = requests.map(r => `
             <div class="ad-card" style="padding: 16px; margin-bottom: 12px;">
-                <div style="font-weight: 800; margin-bottom: 4px;">@${r.userName} (ID: ${r.userId})</div>
-                <div style="font-size: 12px; color: var(--dim); margin-bottom: 12px;">${new Date(r.date).toLocaleString('ru-RU')}</div>
-                <button class="btn btn-primary btn-sm" onclick="approveUser(${r.userId})">Одобрить</button>
+                <div style="font-weight: 800; margin-bottom: 4px;">@${r.username} (ID: ${r.user_id})</div>
+                <div style="font-size: 12px; color: var(--dim); margin-bottom: 12px;">${new Date(r.created_at).toLocaleString('ru-RU')}</div>
+                <button class="btn btn-primary btn-sm" onclick="approveUser(${r.user_id})">Одобрить</button>
             </div>
         `).join('');
     } catch(e) { container.innerHTML = '<div class="empty-state">Ошибка загрузки</div>'; }
@@ -239,7 +238,8 @@ window.show = (screenId) => {
 // Инициализация
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-        document.getElementById('loader').classList.add('hidden-loader');
+        const l = document.getElementById('loader');
+        if (l) l.classList.add('hidden-loader');
     }, 800);
 
     renderKB();
@@ -251,25 +251,4 @@ document.addEventListener('DOMContentLoaded', () => {
         window.Telegram.WebApp.expand();
         document.getElementById('tgLoginBtn').click();
     }
-});d.icon}</div>
-                <div class="card-text">
-                    <div class="status-pill pill-cyan">${mod.category}</div>
-                    <h3>${mod.title}</h3>
-                    <p style="font-size: 13px; line-height: 1.5; margin-top: 8px;">${mod.content}</p>
-                </div>
-            </div>
-        `;
-    });
-
-    // Кнопка в конце
-    html += `
-        <button class="btn btn-outline" style="margin-top: 30px;" onclick="initApp()">
-            Обновить страницу
-        </button>
-    `;
-
-    appDiv.innerHTML = html;
-}
-
-// Запуск при открытии сайта
-initApp();
+});
