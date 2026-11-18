@@ -281,3 +281,268 @@ MEXC / BYBIT: Покупаете USDT на MEXC по 80/82₽ (можно с л�
 Репро банк - банк, который живет 100 кк за год по лимитам.`
     }
 ];
+
+const API_URL = window.location.origin;
+
+const API = {
+    token: () => localStorage.getItem('vexo_token'),
+    user: () => { try { return JSON.parse(localStorage.getItem('vexo_user')); } catch { return null; } },
+    async req(method, path, body) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (this.token()) headers.Authorization = 'Bearer ' + this.token();
+        const res = await fetch(API_URL + '/api' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Error');
+        return data;
+    }
+};
+
+function toast(msg, type = 'info') {
+    const c = document.getElementById('toastContainer');
+    if (!c) return;
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    c.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// Тема
+let currentTheme = localStorage.getItem('vexo_theme') || 'light';
+document.body.setAttribute('data-theme', currentTheme);
+window.toggleTheme = () => {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('vexo_theme', currentTheme);
+};
+
+// Рендер Базы Знаний
+let currentCategory = 'all';
+window.setCategory = (cat, el) => {
+    document.querySelectorAll('#kbCategories .icon-chip').forEach(c => c.classList.remove('active'));
+    if (el) el.classList.add('active');
+    currentCategory = cat;
+    renderKB();
+};
+
+window.showCategory = (cat) => {
+    const chip = document.querySelector(`#kbCategories .icon-chip[data-cat="${cat}"]`);
+    if (chip) {
+        setCategory(cat, chip);
+        window.scrollTo({ top: 200, behavior: 'smooth' });
+    }
+};
+
+function renderKB() {
+    const container = document.getElementById('kbContent');
+    if (!container) return;
+    
+    const searchEl = document.getElementById('searchInput');
+    const search = searchEl ? searchEl.value.toLowerCase() : '';
+    
+    let filtered = currentCategory === 'all' ? KB_DATA : KB_DATA.filter(k => k.category === currentCategory);
+    if (search) {
+        filtered = filtered.filter(k => k.title.toLowerCase().includes(search) || k.content.toLowerCase().includes(search));
+    }
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">Ничего не найдено</div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(k => `
+        <div class="glass-card">
+            <div class="badge-cat">${k.category}</div>
+            <h3>${k.title}</h3>
+            <p style="white-space: pre-wrap;">${k.content}</p>
+        </div>
+    `).join('');
+}
+
+// Калькулятор
+window.calculateP2P = () => {
+    const buy = parseFloat(document.getElementById('calcBuy')?.value) || 0;
+    const sell = parseFloat(document.getElementById('calcSell')?.value) || 0;
+    const amount = parseFloat(document.getElementById('calcAmount')?.value) || 0;
+
+    const resSpread = document.getElementById('resSpread');
+    const resProfit = document.getElementById('resProfit');
+    if (!resSpread || !resProfit) return;
+
+    if (!buy || !sell || !amount) {
+        resSpread.textContent = '0 ₽ (0%)';
+        resProfit.textContent = '0 ₽';
+        return;
+    }
+
+    const spread = sell - buy;
+    const spreadPct = (spread / buy) * 100;
+    const profit = (amount / buy) * spread;
+
+    resSpread.textContent = `${spread.toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
+    resProfit.textContent = `${profit.toFixed(2)} ₽`;
+};
+
+// Авторизация
+function initAuthButtons() {
+    const tgBtn = document.getElementById('tgLoginBtn');
+    if (tgBtn) {
+        tgBtn.onclick = async () => {
+            if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
+                return toast('Откройте через бота в Telegram', 'error');
+            }
+            try {
+                const res = await API.req('POST', '/auth/telegram', { initData: window.Telegram.WebApp.initData });
+                localStorage.setItem('vexo_token', res.token);
+                localStorage.setItem('vexo_user', JSON.stringify(res.user));
+                document.getElementById('authModal')?.classList.remove('active');
+                updateAuthUI();
+                renderProfile();
+                toast('Вход выполнен!', 'success');
+            } catch(e) { toast('Ошибка входа: ' + e.message, 'error'); }
+        };
+    }
+
+    const emailBtn = document.getElementById('emailLoginBtn');
+    if (emailBtn) {
+        emailBtn.onclick = async () => {
+            const login = document.getElementById('loginInput')?.value;
+            const password = document.getElementById('passInput')?.value;
+            try {
+                const res = await API.req('POST', '/auth/login', { login, password });
+                localStorage.setItem('vexo_token', res.token);
+                localStorage.setItem('vexo_user', JSON.stringify(res.user));
+                document.getElementById('authModal')?.classList.remove('active');
+                updateAuthUI();
+                renderProfile();
+                toast('Вход выполнен!', 'success');
+            } catch(e) { toast('Неверный логин или пароль', 'error'); }
+        };
+    }
+}
+
+function updateAuthUI() {
+    const u = API.user();
+    const adminBtn = document.getElementById('adminBnBtn');
+    if (adminBtn) {
+        if (u && u.role === 'admin') adminBtn.style.display = 'flex';
+        else adminBtn.style.display = 'none';
+    }
+}
+
+async function renderProfile() {
+    const container = document.getElementById('profileContent');
+    if (!container) return;
+    let u = API.user();
+    
+    if (!u) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div style="font-size: 40px; margin-bottom: 16px;">🔒</div>
+                <p style="margin-bottom: 16px;">Войдите, чтобы получить доступ</p>
+                <button class="btn btn-primary" onclick="document.getElementById('authModal').classList.add('active')">Войти</button>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const res = await API.req('GET', '/users/me');
+        localStorage.setItem('vexo_user', JSON.stringify(res.user));
+        u = res.user;
+    } catch(e) {}
+
+    const isPaid = u.isPaid || u.role === 'admin';
+
+    container.innerHTML = `
+        <div class="glass-card" style="display:flex; align-items:center; gap:16px;">
+            <div class="avatar lg" style="width:60px;height:60px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;">
+                ${u.displayName[0].toUpperCase()}
+            </div>
+            <div>
+                <h2 style="font-size:20px;font-weight:800;">${u.displayName}</h2>
+                <div style="font-size:14px;color:var(--dim);">@${u.username}</div>
+            </div>
+        </div>
+
+        <div class="glass-card" style="text-align: center; padding: 24px;">
+            <h3 style="margin-bottom: 12px;">Статус доступа</h3>
+            <div style="font-size: 24px; font-weight: 900; color: ${isPaid ? 'var(--grn)' : 'var(--red)'}; margin-bottom: 16px;">
+                ${isPaid ? 'ОПЛАЧЕНО' : 'ЗАКРЫТ'}
+            </div>
+            ${!isPaid ? `
+                <p style="font-size: 14px; color: var(--dim); margin-bottom: 16px;">Отправьте заявку на покупку доступа. Админ подтвердит оплату и откроет базу.</p>
+                <button class="btn btn-primary btn-block" onclick="requestAccess()">Купить доступ (30$)</button>
+            ` : `
+                <p style="font-size: 14px; color: var(--grn);">Вам доступны все материалы!</p>
+            `}
+        </div>
+
+        <button class="btn btn-block" style="margin-top: 24px; color: var(--red); border-color: var(--red);" onclick="localStorage.clear(); location.reload();">Выйти</button>
+    `;
+}
+
+window.requestAccess = async () => {
+    const u = API.user();
+    if (!u) return;
+    try {
+        await API.req('POST', '/requests/access', { userId: u.id, userName: u.username });
+        toast('Заявка отправлена админу!', 'success');
+    } catch(e) { toast('Ошибка отправки', 'error'); }
+};
+
+async function renderAdmin() {
+    const container = document.getElementById('adminRequestsList');
+    if (!container) return;
+    try {
+        const { requests } = await API.req('GET', '/admin/requests');
+        if (!requests.length) {
+            container.innerHTML = '<div class="empty-state">Нет активных заявок</div>';
+            return;
+        }
+        
+        container.innerHTML = requests.map(r => `
+            <div class="glass-card" style="padding: 16px; margin-bottom: 12px;">
+                <div style="font-weight: 800; margin-bottom: 4px;">@${r.username} (ID: ${r.user_id})</div>
+                <div style="font-size: 12px; color: var(--dim); margin-bottom: 12px;">${new Date(r.created_at).toLocaleString('ru-RU')}</div>
+                <button class="btn btn-primary btn-block" onclick="approveUser(${r.user_id})">Одобрить</button>
+            </div>
+        `).join('');
+    } catch(e) { container.innerHTML = '<div class="empty-state">Ошибка загрузки</div>'; }
+}
+
+window.approveUser = async (userId) => {
+    try {
+        await API.req('POST', '/admin/approve', { userId });
+        toast('Доступ выдан!', 'success');
+        renderAdmin();
+    } catch(e) { toast('Ошибка', 'error'); }
+};
+
+window.show = (screenId) => {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + screenId)?.classList.add('active');
+    
+    document.querySelectorAll('.bn-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.bn-btn[data-screen="${screenId}"]`)?.classList.add('active');
+
+    if (screenId === 'profile') renderProfile();
+    if (screenId === 'admin') renderAdmin();
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const l = document.getElementById('loader');
+        if (l) l.classList.add('hidden-loader');
+    }, 800);
+
+    renderKB();
+    initAuthButtons();
+    updateAuthUI();
+    
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+        document.getElementById('tgLoginBtn')?.click();
+    }
+});
