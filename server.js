@@ -9,7 +9,7 @@ const { Pool } = require('pg');
 const CONFIG = {
   BOT_TOKEN: '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE', // Перевыпусти через BotFather /revoke!
   CHANNEL_ID: '-1004468086212',
-  DATABASE_URL: 'postgresql://neondb_owner:****************@ep-icy-hall-b9m7t2bk-pooler.c-7.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
+  DATABASE_URL: 'postgresql://neondb_owner:npg_xN9OFsw6uCMe@ep-solitary-cloud-bahn17dh-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
   PROVIDER_TOKEN: '' // Вставь токен провайдера платежей из BotFather -> Payments
 };
 // ==========================================
