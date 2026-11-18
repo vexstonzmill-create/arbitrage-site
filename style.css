@@ -1,91 +1,94 @@
-/* Базовые стили */
-body {
-    background-color: #000000;
-    color: #ffffff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    margin: 0;
-    padding: 20px 20px 40px 20px;
-    display: flex;
-    justify-content: center;
-    min-height: 100vh;
-    box-sizing: border-box;
-}
+/* --- Стили для экранов состояний (Загрузка и Ошибка) --- */
 
-#app {
+.state-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
     width: 100%;
-    max-width: 400px;
+    text-align: center;
 }
 
-/* Шапка */
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-    margin-top: 10px;
+/* Спиннер загрузки */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #22d3ee;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
 }
 
-.title {
-    font-size: 34px;
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: -0.5px;
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
-.subtitle {
+.state-text {
     color: #8e8e93;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
-    margin-top: 2px;
+    letter-spacing: 0.5px;
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
-.avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid rgba(255,255,255,0.2);
+@keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
 }
 
-.avatar-placeholder {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: #2c2c2e;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 18px;
-    color: #fff;
-}
-
-/* Заголовки секций */
-.section-title {
-    font-size: 22px;
-    font-weight: 700;
-    margin: 20px 0 15px 0;
-    letter-spacing: -0.3px;
-}
-
-/* Карточки (как в Apple Library) */
-.library-card {
+/* Карточка ошибки */
+.error-card {
+    width: 100%;
+    background: linear-gradient(135deg, #3b1318, #110000);
+    border: 1px solid rgba(239, 68, 68, 0.3);
     border-radius: 18px;
-    padding: 16px;
-    margin-bottom: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
     display: flex;
-    align-items: flex-start;
-    gap: 15px;
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.05);
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
 }
 
-/* Градиенты для карточек */
-.card-gradient-red { background: linear-gradient(135deg, #3b1318, #110000); }
-.card-gradient-orange { background: linear-gradient(135deg, #3d2513, #110000); }
-.card-gradient-blue { background: linear-gradient(135deg, #142a44, #000000); }
-.card-gradient-purple { background: linear-gradient(135deg, #2d1344, #000000); }
+.error-card .card-icon {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    font-size: 28px;
+    padding: 12px;
+    border-radius: 50%;
+    margin-bottom: 16px;
+}
+
+.error-card h2 {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+}
+
+.error-card p {
+    color: #a1a1aa;
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 0;
+    word-break: break-word;
+}
+
+.error-details {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}00000); }
 
 .card-icon {
     font-size: 32px;

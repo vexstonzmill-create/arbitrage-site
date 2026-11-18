@@ -10,16 +10,19 @@ const appDiv = document.getElementById('app');
 // 1. Проверяем, открыто ли приложение внутри Telegram
 if (!initData) {
     appDiv.innerHTML = `
-        <div style="text-align:center; padding: 40px 20px;">
-            <h1 style="color:#fff; font-size:24px;">Откройте в Telegram</h1>
-            <p style="color:#8e8e93; font-size:16px;">Это приложение работает только внутри Telegram.</p>
-            <a href="https://t.me/ТВОЙ_БОТ" style="display:inline-block; margin-top:20px; padding:14px 28px; background:#22d3ee; color:#000; border-radius:12px; text-decoration:none; font-weight:600;">Открыть в Telegram</a>
+        <div class="state-screen">
+            <div class="error-card">
+                <div class="card-icon">✈️</div>
+                <h2>Откройте в Telegram</h2>
+                <p>Это приложение работает только внутри Telegram.</p>
+            </div>
+            <a href="https://t.me/ТВОЙ_БОТ" style="display:block; width:100%; padding:16px; background:#22d3ee; color:#000; border-radius:14px; text-decoration:none; font-weight:600; box-sizing:border-box;">Открыть в Telegram</a>
         </div>
     `;
     throw new Error('Приложение открыто вне Telegram');
 }
 
-// Рендер шапки
+// Рендер шапки (как в iOS Library)
 function renderHeader() {
     const user = tg.initDataUnsafe?.user || {};
     const avatar = user.photo_url 
@@ -43,7 +46,13 @@ function renderPage(contentHTML) {
 
 // 2. Проверка доступа
 function checkAccess() {
-    appDiv.innerHTML = `<div class="loading" style="color:#22d3ee; text-align:center; margin-top:50px;">Загрузка...</div>`;
+    // Красивый экран загрузки
+    appDiv.innerHTML = `
+        <div class="state-screen">
+            <div class="spinner"></div>
+            <div class="state-text">Синхронизация...</div>
+        </div>
+    `;
     
     fetch(`${API_URL}/api/auth`, {
         method: 'POST',
@@ -51,7 +60,6 @@ function checkAccess() {
         body: JSON.stringify({ initData })
     })
     .then(async res => {
-        // Если сервер вернул ошибку, читаем её
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
             throw new Error(errData.error || `Ошибка сервера: ${res.status}`);
@@ -88,12 +96,16 @@ function checkAccess() {
         }
     })
     .catch((err) => {
-        // Показываем РЕАЛЬНУЮ ошибку на экране
+        // Красивый экран ошибки
         appDiv.innerHTML = `
-            <div class="error" style="text-align:center; margin-top:50px;">
-                <p style="color:#ef4444; font-weight:bold; margin-bottom:10px;">Ошибка:</p>
-                <p style="color:#fff; background:rgba(255,255,255,0.1); padding:10px; border-radius:8px; font-size:14px;">${err.message}</p>
-                <button class="btn btn-outline" onclick="checkAccess()" style="margin-top:20px;">Попробовать снова</button>
+            <div class="state-screen">
+                <div class="error-card">
+                    <div class="card-icon">⚠️</div>
+                    <h2>Ошибка подключения</h2>
+                    <p>Не удалось получить данные от сервера.</p>
+                    <div class="error-details">${err.message}</div>
+                </div>
+                <button class="btn btn-outline" onclick="checkAccess()">Попробовать снова</button>
             </div>
         `;
     });
@@ -134,10 +146,18 @@ function loadContent() {
         renderPage(html);
     })
     .catch((err) => {
-        renderPage(`<div class="error">Ошибка загрузки: ${err.message}</div>`);
+        renderPage(`
+            <div class="error-card" style="margin-top: 20px;">
+                <div class="card-icon">⚠️</div>
+                <h2>Ошибка контента</h2>
+                <div class="error-details">${err.message}</div>
+            </div>
+            <button class="btn btn-outline" onclick="loadContent()">Обновить</button>
+        `);
     });
 }
 
+// Кнопки
 function subscribe() {
     tg.openTelegramLink('https://t.me/vxo_767'); 
 }
