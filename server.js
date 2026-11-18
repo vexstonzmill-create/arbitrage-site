@@ -1,4 +1,4 @@
-const express = require('express');
+onst express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const { Pool } = require('pg');
@@ -10,7 +10,7 @@ app.use(express.static(__dirname));
 
 const CONFIG = {
   BOT_TOKEN: '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE',
-  ADMIN_TG_ID: tg: 6938068102, // ⚠️ ВСТАВЬ СЮДА СВОЙ РЕАЛЬНЫЙ TG ID (узнать у @userinfobot)
+  ADMIN_TG_ID: 6938068102, // ⚠️ ВСТАВЬ СЮДА СВОЙ РЕАЛЬНЫЙ TG ID (узнать у @userinfobot)
   DATABASE_URL: 'postgresql://neondb_owner:npg_xN9OFsw6uCMe@ep-solitary-cloud-bahn17dh-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 };
 
@@ -134,4 +134,4 @@ function mapUser(dbUser) {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`vxo Backend running on port ${PORT}`));
+app.listen(PORT, () => console.log(`vxo Backend running on port ${PORT}`));}`));
