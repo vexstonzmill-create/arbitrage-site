@@ -3,77 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>vxo | 767 P2P База Знаний</title>
+    <title>W.I.C - База Знаний</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- ВОТ ОНА, ЭТА СТРОЧКА: -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Лоадер -->
+
+    <!-- Экран загрузки -->
     <div id="loader">
         <div class="spinner"></div>
-        <div class="loader-text">Загрузка базы...</div>
     </div>
 
-    <div class="app">
-        <div class="main">
-            <div class="topbar">
-                <button class="menu-btn" id="menuBtn">
-                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-                </button>
-                <div class="user-greeting">
-                    <span class="greeting-text" id="greetingText">База знаний</span>
-                    <span class="user-name" id="topbarName">vxo | 767</span>
-                </div>
-                <button class="icon-btn" onclick="toggleTheme()">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-                </button>
+    <!-- Главный экран (Баннер + Категории) -->
+    <div id="screen-home" class="screen active">
+        <header class="top-bar">
+            <div class="user-info" id="userGreeting">
+                <span class="greet">Привет 👋</span>
+                <span class="name" id="userName">Загрузка...</span>
             </div>
+            <div class="avatar" id="userAvatar">U</div>
+        </header>
 
-            <div class="content">
-                <!-- ЭКРАН 1: БАЗА ЗНАНИЙ -->
-                <div id="screen-home" class="screen active">
-                    <h2 style="margin-bottom: 16px; font-size: 22px;">Мануалы и схемы</h2>
-                    
-                    <div class="icon-scroll" style="margin-bottom: 20px;" id="kbCategories">
-                        <div class="icon-chip active" data-cat="all">Все</div>
-                        <div class="icon-chip" data-cat="Банки">Банки</div>
-                        <div class="icon-chip" data-cat="Связки">Связки</div>
-                        <div class="icon-chip" data-cat="Безопасность">Безопасность</div>
-                        <div class="icon-chip" data-cat="Термины">Термины</div>
-                    </div>
+        <div class="banner">
+            <h1>База Знаний P2P</h1>
+            <p>Всё самое важное в одном месте. Выбирай раздел и прокачивайся.</p>
+        </div>
 
-                    <div id="kbContent" class="bento-grid" style="grid-template-columns: 1fr;">
-                        <!-- Сюда рендерятся карточки -->
-                    </div>
-                </div>
-
-                <!-- ЭКРАН 2: ПРОФИЛЬ -->
-                <div id="screen-profile" class="screen">
-                    <div id="profileContent"></div>
-                </div>
-
-                <!-- ЭКРАН 3: АДМИНКА -->
-                <div id="screen-admin" class="screen">
-                    <h2 style="margin-bottom: 16px;">Заявки на доступ</h2>
-                    <div id="adminRequestsList"></div>
-                </div>
-            </div>
+        <h3 class="section-title">Разделы</h3>
+        <div class="categories-grid" id="categoriesGrid">
+            <!-- Сюда рендерятся карточки категорий -->
         </div>
     </div>
 
-    <!-- НИЖНЯЯ НАВИГАЦИЯ -->
-    <div class="bottom-nav">
-        <button class="bn-btn active" data-screen="home" onclick="show('home')">
-            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-            <span>База</span>
-        </button>
-        <button class="bn-btn" data-screen="profile" onclick="show('profile')">
-            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span>Профиль</span>
-        </button>
-        <button class="bn-btn" id="adminBnBtn" data-screen="admin" onclick="show('admin')" style="display: none;">
-            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    <!-- Экран со списком статей в категории -->
+    <div id="screen-category" class="screen">
+        <header class="top-bar">
+            <button class="back-btn" onclick="show('home')">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <h2 id="categoryTitle" style="font-size: 18px; font-weight: 800;">Категория</h2>
+            <div style="width: 24px;"></div>
+        </header>
+        
+        <div id="articlesList" class="articles-list">
+            <!-- Сюда рендерятся прямоугольные блоки статей -->
+        </div>
+
+        <!-- Кнопка добавления статьи (видна только админу) -->
+        <button id="adminAddBtn" class="floating-btn" onclick="openEditModal()" style="display: none;">+</button>
+    </div>
+
+    <!-- Экран чтения статьи -->
+    <div id="screen-article" class="screen">
+        <header class="top-bar">
+            <button class="back-btn" onclick="backToCategory()">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <h2 style="font-size: 16px; font-weight: 800; color: var(--dim);">Чтение</h2>
+            <button class="edit-btn" id="adminEditBtn" onclick="openEditModal(true)" style="display: none;">✏️</button>
+        </header>
+
+        <div class="article-content">
+            <h1 id="articleTitle"></h1>
+            <div class="article-date" id="articleDate"></div>
+            <div class="article-text" id="articleText"></div>
+        </div>
+    </div>
+
+    <!-- Модалка редактирования (для админа) -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modalTitle">Добавить статью</h3>
+            <input type="text" id="editTitle" class="input" placeholder="Заголовок" style="margin-bottom: 12px;">
+            <textarea id="editContent" class="input" rows="8" placeholder="Текст статьи..." style="margin-bottom: 12px;"></textarea>
+            <button class="btn btn-primary" onclick="saveArticle()">Сохранить</button>
+            <button class="btn btn-ghost" onclick="closeModal('editModal')" style="margin-top: 8px;">Отмена</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>></svg>
             <span>Админ</span>
         </button>
     </div>

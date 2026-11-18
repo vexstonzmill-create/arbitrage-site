@@ -1,166 +1,118 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const axios = require('axios');
 const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(__dirname));
 
-// ================= НАСТРОЙКИ =================
 const CONFIG = {
-  BOT_TOKEN: '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE', // Твой токен бота
-  ADMIN_TG_ID: 123456789, // ВСТАВЬ СВОЙ TG ID (узнать у @userinfobot)
+  BOT_TOKEN: '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE',
+  ADMIN_TG_ID: tg: 6938068102, // ⚠️ ВСТАВЬ СЮДА СВОЙ РЕАЛЬНЫЙ TG ID (узнать у @userinfobot)
   DATABASE_URL: 'postgresql://neondb_owner:npg_xN9OFsw6uCMe@ep-solitary-cloud-bahn17dh-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 };
-// ============================================
 
 const pool = new Pool({
   connectionString: CONFIG.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// Создаем таблицы при старте, если их нет
+// Инициализация БД и создание стартовых статей
 async function initDB() {
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id BIGINT PRIMARY KEY,
-        username TEXT,
-        display_name TEXT,
-        avatar_url TEXT,
-        role TEXT DEFAULT 'user',
-        is_paid BOOLEAN DEFAULT false
-      );
-    `);
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS access_requests (
-        id SERIAL PRIMARY KEY,
-        user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-        created_at TIMESTAMPTZ DEFAULT now(),
-        UNIQUE(user_id)
-      );
-    `);
-    console.log('✅ База данных инициализирована (таблицы готовы)');
-  } catch (e) {
-    console.error('❌ Ошибка инициализации БД:', e.message);
-  }
+    await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false);`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, updated_at TIMESTAMPTZ DEFAULT now());`);
+    
+    // Проверяем, есть ли статьи. Если нет — заполняем твоими мануалами
+    const check = await pool.query('SELECT count(*) FROM articles');
+    if (parseInt(check.rows[0].count) === 0) {
+      console.log('Заполняем базу начальными статьями...');
+      await pool.query(`
+        INSERT INTO articles (category, title, content) VALUES 
+        ('Мануалы', 'Банк ПСБ и Альфа 🏦', 'Самые стабильные банки — ПСБ и Альфа. 
+— 4–5 платежей в день.
+— Остаток на карте 2000–4000 рублей.
+— Траты около 1500 рублей в день (аптеки, магазины).
+— Прогрев 3–4 дня, потом 2 дня отлёга.
+ПСБ блоки снимаются за 15 дней. Альфа — 14+ лет, запуск с 9 до 00.'),
+        ('Связки', 'Связка Таиланд 🇹🇭', 'Ордер на покупку по 33 THB, лимит от 5000 THB. 
+Создаётся ордер на продажу по 40 THB. 
+30к/33 = 909 USDT. 30к/40 = 750 USDT. 
+Разница ~159 USDT (13-14к руб) с одной сделки! 🚀'),
+        ('Связки', 'Связка Bybit-HTX 📈', 'Мейкер на Bybit, Тейкер на HTX.
+1. Объявление на Bybit на покупку по 80,6 ₽.
+2. Сделка на HTX на продажу по 83,8 ₽.
+3. Передаются реквизиты. Чистыми ~4-4.5%.
+⚠️ HTX в санкционном списке!'),
+        ('Термины', 'Словарь Арбитражника 📚', 'КА - Контрагент (постоянный клиент).
+Ферма - 1-3 чека в сутки.
+Агроферма - от 50 до 300к в сутки.
+Гном - дроп (лицо, дающее карту).
+Круг - работа с входящими и исходящими.
+Стяг - переводы между своими счетами.
+Прогрев - покупки для имитации реальной жизни.')
+      `);
+    }
+    console.log('✅ База данных готова');
+  } catch (e) { console.error('❌ Ошибка БД:', e.message); }
 }
 initDB();
 
-// Валидация Telegram
 function validateTelegramData(initData) {
   if (!initData) return false;
   const urlParams = new URLSearchParams(initData);
   const hash = urlParams.get('hash');
   urlParams.delete('hash');
-  const dataCheckString = Array.from(urlParams.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`).join('\n');
+  const dataCheckString = Array.from(urlParams.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('\n');
   const secretKey = crypto.createHmac('sha256', 'WebAppData').update(CONFIG.BOT_TOKEN).digest();
   return crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex') === hash;
 }
 
-// 1. Авторизация через Telegram
 app.post('/api/auth/telegram', async (req, res) => {
   const { initData } = req.body;
   if (!validateTelegramData(initData)) return res.status(401).json({ error: 'Invalid data' });
-
   const tgUser = JSON.parse(new URLSearchParams(initData).get('user'));
   const isAdmin = Number(tgUser.id) === Number(CONFIG.ADMIN_TG_ID);
-
-  try {
-    // Вставляем или обновляем пользователя
-    const upsertQuery = `
-      INSERT INTO users (id, username, display_name, avatar_url, role) 
-      VALUES ($1, $2, $3, $4, $5) 
-      ON CONFLICT (id) DO UPDATE SET 
-        username = EXCLUDED.username, 
-        display_name = EXCLUDED.display_name, 
-        avatar_url = EXCLUDED.avatar_url,
-        role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END
-      RETURNING *;
-    `;
-    const role = isAdmin ? 'admin' : 'user';
-    const result = await pool.query(upsertQuery, [
-      tgUser.id, 
-      tgUser.username || `user_${tgUser.id}`, 
-      tgUser.first_name || 'User', 
-      tgUser.photo_url || null,
-      role
-    ]);
-    
-    const user = result.rows[0];
-    res.json({ token: 'mock_token_' + user.id, user: mapUser(user) });
-  } catch (e) {
-    console.error('Auth Error:', e);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// 2. Обычная авторизация (для браузера)
-app.post('/api/auth/login', async (req, res) => {
-  const { login, password } = req.body;
-  if (login === 'admin' && password === 'admin') {
-    try {
-      const result = await pool.query(`
-        INSERT INTO users (id, username, display_name, role, is_paid) 
-        VALUES ($1, 'admin', 'Admin', 'admin', true) 
-        ON CONFLICT (id) DO UPDATE SET role = 'admin', is_paid = true
-        RETURNING *;
-      `, [CONFIG.ADMIN_TG_ID]);
-      res.json({ token: 'mock_token_' + CONFIG.ADMIN_TG_ID, user: mapUser(result.rows[0]) });
-    } catch(e) { res.status(500).json({ error: 'DB error' }); }
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
-  }
-});
-
-// 3. Создание заявки на доступ
-app.post('/api/requests/access', async (req, res) => {
-  const { userId } = req.body;
-  try {
-    await pool.query(
-      'INSERT INTO access_requests (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
-      [userId]
-    );
-    res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: 'Error creating request' }); }
-});
-
-// 4. Получить заявки (для админа)
-app.get('/api/admin/requests', async (req, res) => {
+  
   try {
     const result = await pool.query(`
-      SELECT ar.user_id, ar.created_at, u.username, u.display_name 
-      FROM access_requests ar
-      JOIN users u ON ar.user_id = u.id
-      ORDER BY ar.created_at DESC
-    `);
-    res.json({ requests: result.rows });
-  } catch(e) { res.status(500).json({ error: 'DB error' }); }
+      INSERT INTO users (id, username, display_name, avatar_url, role) 
+      VALUES ($1, $2, $3, $4, $5) 
+      ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, display_name = EXCLUDED.display_name 
+      RETURNING *;
+    `, [tgUser.id, tgUser.username || `user_${tgUser.id}`, tgUser.first_name || 'User', tgUser.photo_url || null, isAdmin ? 'admin' : 'user']);
+    
+    res.json({ token: 'token_' + tgUser.id, user: result.rows[0] });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// 5. Одобрить заявку (для админа)
-app.post('/api/admin/approve', async (req, res) => {
-  const { userId } = req.body;
+app.get('/api/articles', async (req, res) => {
   try {
-    // Выдаем доступ
-    await pool.query('UPDATE users SET is_paid = true WHERE id = $1', [userId]);
-    // Удаляем заявку
-    await pool.query('DELETE FROM access_requests WHERE user_id = $1', [userId]);
-    res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: 'DB error' }); }
+    const result = await pool.query('SELECT * FROM articles ORDER BY updated_at DESC');
+    res.json({ articles: result.rows });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// 6. Проверка профиля
-app.get('/api/users/me', async (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  const userId = parseInt(token?.replace('mock_token_', ''));
-  
-  if (!userId || isNaN(userId)) return res.json({ user: { id: 0, role: 'guest', isPaid: false } });
+app.post('/api/articles', async (req, res) => {
+  const { category, title, content } = req.body;
+  try {
+    await pool.query('INSERT INTO articles (category, title, content) VALUES ($1, $2, $3)', [category, title, content]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.put('/api/articles/:id', async (req, res) => {
+  const { title, content } = req.body;
+  try {
+    await pool.query('UPDATE articles SET title = $1, content = $2, updated_at = now() WHERE id = $3', [title, content, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));.json({ user: { id: 0, role: 'guest', isPaid: false } });
 
   try {
     const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);

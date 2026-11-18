@@ -1,80 +1,201 @@
-// === ПОЛНЫЙ ОФИЦИАЛЬНЫЙ МАНУАЛ ===
-const KB_DATA = [
-    {
-        category: "Основы",
-        title: "Что такое P2P и как это работает",
-        content: `Вкратце это заработок на разнице в курсе на биржах. Но если углубляться, там есть много разных сфер:
-1) Классика
-2) Белый треугол
-3) Обменник и т.д.
+const API_URL = window.location.origin;
+let state = { user: null, articles: [], currentCategory: null, currentArticle: null };
+let tg = window.Telegram?.WebApp;
 
-КЛАССИКА
-Вы создаете ордер на бирже Bybit, устанавливаете лимиты на продажу от 500 до (все ваши юсдт). На классике очень хорошие спреды на байбит от 5 до 10%, то есть с круга с депозитом 20-30т вы можете делать 1500-3т. Далее вы продаете все юсдт и на карте у вас собирается сумма вашего депозита. После вы ставите ордер на покупку юсдт по меньшему курсу чем продали. Допустим продали по 86, закупаете по 79. Выставляете ордер на покупку и устанавливаете лимиты от 1000 до (сумма которая на карте). Круг занимает 20-30м. Советую работать на картах: Сбер 18+, Отп 18+, Озон 18+, Альфа банк 18+. Прогретые живут до 800-1кк.
+// Инициализация
+document.addEventListener('DOMContentLoaded', async () => {
+    if (tg) { tg.ready(); tg.expand(); }
+    
+    // Убираем лоадер через 500мс
+    setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
 
-ТРЕУГОЛ БЕЗ КАРТ
-Выставляете ордер на покупку юсдт, и ставите лимиты от 4000 до (ваш депозит). К вам заходят на покупку допустим на 25.000. Вы пишете в чате «здравствуйте оплачивать буду в 4-5 платежей от 3 лиц, карта друзей, согласны?». После согласия выставляете ордер на продажу юсдт. К вам заходят к примеру 10.000, 5.000, 10.000. Вы скидываете реквизиты покупателя и ждете подтверждения. НИ В КОЕМ СЛУЧАЕ НЕ ОТПУСКАЙТЕ ИХ, ПОКА ВАС НЕ ОТПУСТИТ ПОКУПАТЕЛЬ. Если спред хороший, с круга можно сделать 5-6$.`
-    },
-    {
-        category: "Основы",
-        title: "Лица в P2P и Многозадачность",
-        content: `1 лицо - когда плательщик и владелец аккаунта/карты - один и тот же человек (ФИО биржи = ФИО плательщика).
-2 лицо - однофамилец.
-3 лицо - когда платит другой человек, не являющийся владельцем аккаунта (ФИО биржи ≠ ФИО плательщика).
+    await authUser();
+    await loadArticles();
+});
 
-МНОГОЗАДАЧНОСТЬ (проверка контрагента):
-1. Комментарий к переводу (например, последние цифры ордера).
-2. Фото карты на фоне сделки (проверка физического доступа).
-3. Фото приложения банка и биржи.
-4. Реквизиты для возврата (если деньги пришли от 3-го лица, а вы работаете только с 1-ми).
-5. Звонок отправителю (уточнить, понимает ли он, за что платит).`
-    },
-    {
-        category: "Банки",
-        title: "Мануал ПСБ и Альфа",
-        content: `Самые стабильные банки — это ПСБ и Альфа. Стабильнее в плане оборотов просто нет.
-— встаёте в работу по хай-чекам.
-— оптимально заходят суммы от 20к, но от 10к тоже рабочий вариант.
-— приём идёт по СБП, до момента, пока система не режет переводы по номеру телефона.
+// Авторизация через ТГ
+async function authUser() {
+    if (tg && tg.initData) {
+        try {
+            const res = await fetch(`${API_URL}/api/auth/telegram`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: tg.initData })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                state.user = data.user;
+                localStorage.setItem('token', data.token);
+                updateUIForUser();
+            }
+        } catch(e) { console.error('Auth error', e); }
+    } else {
+        // Если открыто в браузере (для тестов), создаем фейкового админа
+        state.user = { displayName: 'Гость (Браузер)', role: 'admin', avatarUrl: null };
+        updateUIForUser();
+    }
+}
 
-После этого:
-— меняете номер телефона.
-— даёте карте отдохнуть 3 дня.
-— и спокойно снова встаёте в работу.
+// Обновляем шапку под юзера
+function updateUIForUser() {
+    if (!state.user) return;
+    document.getElementById('userName').textContent = state.user.displayName;
+    
+    const av = document.getElementById('userAvatar');
+    if (state.user.avatarUrl) {
+        av.innerHTML = `<img src="${state.user.avatarUrl}">`;
+    } else {
+        av.textContent = state.user.displayName[0].toUpperCase();
+    }
 
-По активности:
-— 4–5 платежей в день — более чем достаточно.
-— снимать деньги не рекомендуется.
-— лучше делать откуп от 40к.
-— без хвостов, только ровные суммы.
+    // Показываем кнопки админа
+    if (state.user.role === 'admin') {
+        document.getElementById('adminAddBtn').style.display = 'flex';
+    }
+}
 
-На карте обязательно должен оставаться остаток: примерно 2000–4000 рублей. Нулевая карта — всегда выглядит подозрительно.
-Очень важный момент — ежедневные траты: стабильно тратите около 1500 рублей в день. Магазины, аптеки, транспорт, маркетплейсы (Ozon, WB), кэшбэк. Карта должна жить.
+// Загрузка статей
+async function loadArticles() {
+    try {
+        const res = await fetch(`${API_URL}/api/articles`);
+        const data = await res.json();
+        state.articles = data.articles || [];
+        renderCategories();
+    } catch(e) { console.error('Load error', e); }
+}
 
-По входу в банки:
-— всегда заходите сразу с рабочего телефона.
-— не прыгайте между устройствами.
-— сначала прогрев 3–4 дня, потом 2 дня отлёга, и только после этого полноценный запуск.
+// Рендер главного экрана с категориями
+function renderCategories() {
+    // Собираем уникальные категории
+    const categories = [...new Set(state.articles.map(a => a.category))];
+    const grid = document.getElementById('categoriesGrid');
+    
+    const icons = { 'Мануалы': '🏦', 'Связки': '🔗', 'Термины': '📚', 'Безопасность': '🛡️' };
+    const classes = ['g1', 'g2', 'g3', 'g4'];
 
-По блокам:
-— ПСБ — блоки снимаются примерно за 15 дней.
-— Альфа — если без происшествий, могут снять в тот же день или на следующий.`
-    },
-    {
-        category: "Банки",
-        title: "Мануал Альфа Банк (14+)",
-        content: `1. Даем день отлеги и можем начинать после того как устройство станет доверенным.
-2. Подключаем Альфа Смарт, подключаем кэшбэки.
-3. Вносим через банкомат Альфы 1000₽ и делаем прогрев на 10-15 категорий.
-4. Запускаемся в работу с 9 утра до 00: 15 С2С и 3 СБП.
-5. После 00:00 снова встаем в работу: 15 С2С и 3 СБП.
-6. Прием: от 15т₽ (понижаем если не хватает трафика).
-7. Снимаемся у партнеров Газпром, ПСБ. Делаем грев после каждого снятия.
+    grid.innerHTML = categories.map((cat, i) => {
+        const count = state.articles.filter(a => a.category === cat).length;
+        return `
+        <div class="cat-card ${classes[i % 4]}" onclick="openCategory('${cat}')">
+            <div class="icon">${icons[cat] || '📄'}</div>
+            <div>
+                <h4>${cat}</h4>
+                <span>${count} статей</span>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
 
-ДОВЕРЕННОЕ УСТРОЙСТВО (Альфа-Банк):
-В ЛК выбираем профиль -> безопасность -> привязанные устройства.
-На этом же устройстве входим через сайт в альфа онлайн по номеру телефона и карты, заново заходим в профиль -> безопасность -> привязанные устройства.
-Удаляем все устройства (свое тоже) по причине «больше не пользуюсь».
-Заходим заново с телефона и удаляем веб версию. Даем отлегу 24 часа.`
+// Открытие категории (список статей)
+window.openCategory = (cat) => {
+    state.currentCategory = cat;
+    document.getElementById('categoryTitle').textContent = cat;
+    
+    const list = document.getElementById('articlesList');
+    const filtered = state.articles.filter(a => a.category === cat);
+    
+    list.innerHTML = filtered.map(art => `
+        <div class="article-item" onclick="openArticle(${art.id})">
+            <div>
+                <h4>${art.title}</h4>
+                <div class="date">Обновлено: ${new Date(art.updated_at).toLocaleDateString('ru-RU')}</div>
+            </div>
+            <div class="arrow">›</div>
+        </div>
+    `).join('');
+
+    show('category');
+};
+
+// Открытие статьи
+window.openArticle = (id) => {
+    const art = state.articles.find(a => a.id === id);
+    if (!art) return;
+    state.currentArticle = art;
+
+    document.getElementById('articleTitle').textContent = art.title;
+    document.getElementById('articleDate').textContent = `Обновлено: ${new Date(art.updated_at).toLocaleString('ru-RU')}`;
+    document.getElementById('articleText').textContent = art.content;
+
+    // Если админ, показываем кнопку редактирования
+    if (state.user && state.user.role === 'admin') {
+        document.getElementById('adminEditBtn').style.display = 'flex';
+    } else {
+        document.getElementById('adminEditBtn').style.display = 'none';
+    }
+
+    show('article');
+};
+
+window.backToCategory = () => {
+    openCategory(state.currentCategory);
+};
+
+// Навигация экранов
+window.show = (screenId) => {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + screenId).classList.add('active');
+    window.scrollTo(0, 0);
+};
+
+// --- АДМИНКА: Редактирование ---
+
+window.openEditModal = (isEdit = false) => {
+    const modal = document.getElementById('editModal');
+    const titleInput = document.getElementById('editTitle');
+    const contentInput = document.getElementById('editContent');
+    const modalTitle = document.getElementById('modalTitle');
+
+    if (isEdit && state.currentArticle) {
+        modalTitle.textContent = 'Редактировать статью';
+        titleInput.value = state.currentArticle.title;
+        contentInput.value = state.currentArticle.content;
+    } else {
+        modalTitle.textContent = `Новая статья в "${state.currentCategory}"`;
+        titleInput.value = '';
+        contentInput.value = '';
+    }
+    
+    modal.classList.add('active');
+};
+
+window.closeModal = (id) => {
+    document.getElementById(id).classList.remove('active');
+};
+
+window.saveArticle = async () => {
+    const title = document.getElementById('editTitle').value.trim();
+    const content = document.getElementById('editContent').value.trim();
+    if (!title || !content) return alert('Заполните все поля!');
+
+    const isEdit = !!state.currentArticle;
+    const url = isEdit ? `${API_URL}/api/articles/${state.currentArticle.id}` : `${API_URL}/api/articles`;
+    const method = isEdit ? 'PUT' : 'POST';
+    
+    const payload = { title, content };
+    if (!isEdit) payload.category = state.currentCategory;
+
+    try {
+        await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        closeModal('editModal');
+        await loadArticles(); // Перезагружаем данные
+        
+        if (isEdit) {
+            // Обновляем текущую открытую статью
+            const updatedArt = state.articles.find(a => a.id === state.currentArticle.id);
+            if (updatedArt) openArticle(updatedArt.id);
+        } else {
+            // Возвращаемся в категорию
+            openCategory(state.currentCategory);
+        }
+    } catch(e) { alert('Ошибка сохранения'); }
+};м отлегу 24 часа.`
     },
     {
         category: "Банки",
