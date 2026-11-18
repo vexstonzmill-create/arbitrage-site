@@ -1,198 +1,132 @@
-// Моковые данные для теста (потом сюда можно вставить реальные)
+const appDiv = document.getElementById('app');
+
+// Твои структурированные модули с иконками
 const MOCK_MODULES = [
     {
-        category: 'P2P Basics',
-        title: 'Введение в P2P',
-        content: 'Основы работы с P2P арбитражем. Как искать объявления и безопасно проводить сделки.'
+        icon: '🏦',
+        category: 'Банковские операции',
+        title: 'ПСБ и Альфа-Банк: Базовые параметры',
+        content: 'Наиболее стабильные банки для проведения транзакций. Рекомендуемый формат работы: высокие чеки, суммы от 20 000 руб. Прием платежей осуществляется через СБП. При достижении лимитов рекомендуется смена номера телефона и пауза в работе с картой на 3 дня. Оптимальная активность: 4-5 платежей в сутки. Рекомендуется оставлять остаток на карте 2 000–4 000 руб. Обязательны ежедневные бытовые траты (около 1 500 руб.) для имитации естественного финансового профиля. Период прогрева устройства: 3-4 дня, затем 2 дня паузы. Срок снятия блокировок: ПСБ — до 15 дней, Альфа-Банк — 1-2 дня.'
     },
     {
-        category: 'Security',
-        title: 'Безопасность аккаунтов',
-        content: 'Как не потерять средства. Настройка 2FA, антидетект-браузеры и защита от скама.'
+        icon: '📱',
+        category: 'Банковские операции',
+        title: 'Регламент работы с Альфа-Банком',
+        content: 'Возрастной ценз: 14+. Требуется настройка доверенного устройства через личный кабинет (удаление посторонних устройств и веб-версии, отлега 24 часа). Интеграция с Alfa Smart и кэшбэк-сервисами. Первичное пополнение: 1 000 руб. через банкомат, прогрев на 10-15 категорий товаров. Рабочие лимиты: 15 СБП и 3 С2С с 09:00 до 00:00. Прием платежей от 15 000 руб. Снятие наличных рекомендуется через партнерские банкоматы (Газпромбанк, ПСБ).'
     },
     {
-        category: 'Strategy',
-        title: 'Стратегии 2024',
-        content: 'Актуальные связки, работа с банками и методы обхода лимитов.'
+        icon: '💳',
+        category: 'Банковские операции',
+        title: 'Т-Банк: Регламент и вывод при УКБО',
+        content: 'Начало работы от 10 000 руб. через СБП с интервалом 20 минут (6 платежей). Затем переход на С2С (2 платежа). Снятие наличных в банкоматах Т-Банка суммами 30 000–40 000 руб. Рабочие часы: 10:00–20:00 (формат 5/2). Для вывода средств при ограничении (УКБО): заполнение заявления, нотариальное заверение копий паспорта, отправка в головной офис банка (г. Москва, ул. Хуторская 2-я, д.38А, стр. 26) почтой или курьерской службой. Обязательно наличие счета в стороннем банке.'
     },
     {
-        category: 'Guides',
-        title: 'Гайд по Binance',
-        content: 'Пошаговая инструкция по верификации и работе с P2P на крупнейшей бирже.'
+        icon: '📈',
+        category: 'Арбитраж и связки',
+        title: 'Классический P2P-арбитраж',
+        content: 'Заработок на разнице курсов покупки и продажи USDT в рамках одной биржи (например, Bybit). Механика: покупка актива по низкому курсу и выставление ордера на продажу по более высокому. Рекомендуемые банки для приема платежей: Сбер, ОТП, Озон, Альфа (возраст 18+). Средний спред на Bybit составляет 5-10%. При депозите 20-30 тыс. руб. доходность с одного оборота может составлять 1 500–3 000 руб. Время закрытия круга: 20-30 минут.'
+    },
+    {
+        icon: '👛',
+        category: 'Арбитраж и связки',
+        title: 'Связки с использованием TG Wallet и HTX',
+        content: 'Связка с HTX (без карт): Создание ордера на HTX с лимитами 1 000–3 000 руб., обмен USDT на TON в TG Wallet, выставление объявления на продажу TON с лимитами под сумму ордера. Средний спред: 4-8%. Связка Bybit - HTX: Покупка USDT на Bybit (мейкер) и продажа на HTX (тейкер) с оплатой через СБП. Прибыль формируется за счет разницы курсов, транзакция занимает 30-40 минут. Чистый спред составляет около 4-4.5%.'
+    },
+    {
+        icon: '🌍',
+        category: 'Арбитраж и связки',
+        title: 'Региональные направления',
+        content: 'Грузия: Работа через TBC Bank, BoG, Credo, Liberty. Использование схемы "белый треугольник". Средний спред 2-4%. Высокая ликвидность на покупку, низкая на продажу. Таиланд: Операции на HTX с тайским батом (THB). Покупка USDT по 33 THB, продажа по 40 THB. Потенциальная прибыль до 13 000–14 000 руб. с одной сделки. Таджикистан: Перевод рублей в сомони, покупка USDT на бирже. Спред 4-5%. Казахстан: Высокие спреды, но повышенный уровень мошенничества (риск фейковых чеков).'
+    },
+    {
+        icon: '🛡️',
+        category: 'Безопасность и комплаенс',
+        title: 'Причины блокировок и работа с 115-ФЗ',
+        content: 'Основные триггеры блокировок: отсутствие истории операций, дробление платежей, резкая смена финансового поведения, частые международные переводы. Для снятия ограничений по 115-ФЗ: подготовка пакета документов (скриншоты сделок, выписки, пояснения), подача в банк, при отказе — жалоба в интернет-приемную Центрального Банка РФ. Срок рассмотрения ЦБ: до 15 рабочих дней. Для снятия 161-ФЗ (передача данных между банками) необходимо обращение в службу безопасности банка-инициатора ограничений.'
+    },
+    {
+        icon: '⚠️',
+        category: 'Безопасность и комплаенс',
+        title: 'Противодействие мошенничеству',
+        content: 'Схема с фейковым чеком: контрагент присылает поддельный документ об оплате и требует отпустить активы. Правило: никогда не отпускать сделку до фактического зачисления средств на счет. Схема с "приватным ордером" Bybit Pay: мошенники перенаправляют на ончейн-переводы. Схема с электронной почтой: злоумышленник просит отправить email в ордер, после чего жертва переводит средства на чужой счет. Рекомендация: проверять совпадение имени плательщика, запрашивать видео-подтверждение перевода и работать только с проверенными контрагентами.'
+    },
+    {
+        icon: '⭐',
+        category: 'Безопасность и комплаенс',
+        title: 'Управление репутацией на Bybit',
+        content: 'Процедура удаления негативного отзыва при отсутствии нарушений со стороны продавца: 1) Обращение в справочный центр Bybit (раздел P2P -> Удаление отзывов). 2) Предоставление UID, номера ордера, скриншота и обоснования. 3) Предоставление переписки (при обвинении в грубости) или подтверждений из банка (при задержке платежа). Срок первичного ответа: до 7 дней. Вероятность одобрения: 70-80%. Не рекомендуется злоупотреблять запросами во избежание блокировки аккаунта.'
+    },
+    {
+        icon: '📖',
+        category: 'Словарь терминов',
+        title: 'Профессиональная терминология P2P',
+        content: 'КА — Контрагент (постоянный клиент). Ферма — вид работы с приемом 1-3 чеков в сутки. Агроферма — прием от 50 до 300 тыс. руб. в сутки. Материал — карта или сим-карта, используемая в работе. Площадка — платежная система для обработки платежей. Страховой депозит — замороженные средства для обеспечения безопасности сделок. Круг — цикл работы с входящими и исходящими платежами. Прогрев — имитация реальной жизни (покупки по карте). Дроп — лицо, предоставляющее доступ к своим банковским счетам. Репро-банк — банк с высоким лимитом транзакций (до 100 млн руб. в год).'
     }
 ];
 
-const appDiv = document.getElementById('app');
+// Функция запуска (показывает спиннер)
+function initApp() {
+    appDiv.innerHTML = `
+        <div class="state-screen">
+            <div class="spinner"></div>
+            <div class="state-text">Загрузка базы знаний...</div>
+        </div>
+    `;
 
-// Безопасная инициализация Telegram (если открыто в браузере — не упадет)
-let tg = null;
-let user = { first_name: 'U', photo_url: null };
-
-if (window.Telegram && window.Telegram.WebApp) {
-    tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
-    if (tg.initDataUnsafe?.user) {
-        user = tg.initDataUnsafe.user;
-    }
+    // Имитация загрузки (1 секунда)
+    setTimeout(() => {
+        renderContent();
+    }, 1000); 
 }
 
-// Рендер шапки (как в iOS Library)
-function renderHeader() {
-    const avatar = user.photo_url 
-        ? `<img src="${user.photo_url}" class="avatar" alt="avatar">` 
-        : `<div class="avatar-placeholder">${user.first_name ? user.first_name[0] : 'U'}</div>`;
-
-    return `
+// Отрисовка контента
+function renderContent() {
+    let html = `
         <div class="header">
             <div>
                 <h1 class="title">Library</h1>
                 <div class="subtitle">vxo | 767 P2P</div>
             </div>
-            ${avatar}
+            <div class="avatar-placeholder">V</div>
         </div>
     `;
-}
-
-function renderPage(contentHTML) {
-    appDiv.innerHTML = renderHeader() + contentHTML;
-}
-
-// Главная функция запуска
-function initApp() {
-    // Показываем красивый спиннер
-    appDiv.innerHTML = `
-        <div class="state-screen">
-            <div class="spinner"></div>
-            <div class="state-text">Загрузка библиотеки...</div>
-        </div>
-    `;
-
-    // Имитация загрузки (чтобы ты увидел спиннер)
-    setTimeout(() => {
-        try {
-            // Вместо запроса к серверу просто берем моковые данные
-            renderContent(MOCK_MODULES);
-        } catch (err) {
-            showError(err.message);
-        }
-    }, 800); 
-}
-
-// Отрисовка контента
-function renderContent(modules) {
-    let html = `<h2 class="section-title">Your Modules</h2>`;
     
-    if (!modules || modules.length === 0) {
-        html += `<p class="text-gray">Пока нет материалов.</p>`;
-    } else {
-        modules.forEach(mod => {
-            html += `
-                <div class="library-card card-gradient-blue">
-                    <div class="card-text">
-                        <div class="status-pill pill-cyan">${mod.category}</div>
-                        <h3>${mod.title}</h3>
-                        <p>${mod.content}</p>
-                    </div>
-                </div>
-            `;
-        });
-    }
-    
-    // Имитируем, что доступ открыт
-    renderPage(`
+    // Бейдж "Доступ открыт"
+    html += `
         <div style="margin-bottom: 15px; display:flex; justify-content:flex-end;">
-            <span class="status-pill" style="color:#4ade80; border-color:#4ade80; background:rgba(74,222,128,0.1);">ДОСТУП ОТКРЫТ</span>
-        </div>
-        ${html}
-    `);
-}
-
-// Показ ошибки (в едином стиле)
-function showError(message) {
-    appDiv.innerHTML = `
-        <div class="state-screen">
-            <div class="error-card">
-                <div class="card-icon">⚠️</div>
-                <h2>Упс...</h2>
-                <p>Не удалось загрузить данные.</p>
-                <div class="error-details">${message}</div>
-            </div>
-            <button class="btn btn-outline" onclick="initApp()">Попробовать снова</button>
+            <span class="status-pill pill-green">ДОСТУП ОТКРЫТ</span>
         </div>
     `;
-}
 
-// Запуск приложения
-initApp();aders: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData })
-    })
-    .then(async res => {
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || `Ошибка: ${res.status}`);
-        }
-        return res.json();
-    })
-    .then(data => {
-        let html = `<h2 class="section-title">Your Modules</h2>`;
-        
-        if (!data.modules || data.modules.length === 0) {
-            html += `<p class="text-gray">Пока нет материалов.</p>`;
-        } else {
-            data.modules.forEach(mod => {
-                html += `
-                    <div class="library-card card-gradient-blue">
-                        <div class="card-text">
-                            <div class="status-pill pill-cyan">${mod.category}</div>
-                            <h3>${mod.title}</h3>
-                            <p>${mod.content}</p>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        renderPage(html);
-    })
-    .catch((err) => {
-        renderPage(`
-            <div class="error-card" style="margin-top: 20px;">
-                <div class="card-icon">⚠️</div>
-                <h2>Ошибка контента</h2>
-                <div class="error-details">${err.message}</div>
+    html += `<h2 class="section-title">База знаний</h2>`;
+    
+    // Генерация карточек с иконками
+    MOCK_MODULES.forEach((mod, index) => {
+        // Чередуем цвета градиентов для красоты (синий, красный, оранжевый, фиолетовый)
+        const gradients = ['card-gradient-blue', 'card-gradient-red', 'card-gradient-orange', 'card-gradient-purple'];
+        const currentGradient = gradients[index % gradients.length];
+
+        html += `
+            <div class="library-card ${currentGradient}">
+                <div class="card-icon">${mod.icon}</div>
+                <div class="card-text">
+                    <div class="status-pill pill-cyan">${mod.category}</div>
+                    <h3>${mod.title}</h3>
+                    <p style="font-size: 13px; line-height: 1.5; margin-top: 8px;">${mod.content}</p>
+                </div>
             </div>
-            <button class="btn btn-outline" onclick="loadContent()">Обновить</button>
-        `);
+        `;
     });
+
+    // Кнопка в конце
+    html += `
+        <button class="btn btn-outline" style="margin-top: 30px;" onclick="initApp()">
+            Обновить страницу
+        </button>
+    `;
+
+    appDiv.innerHTML = html;
 }
 
-// Кнопки
-function subscribe() {
-    tg.openTelegramLink('https://t.me/vxo_767'); 
-}
-
-function pay() {
-    fetch(`${API_URL}/api/invoice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData })
-    })
-    .then(async res => {
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || `Ошибка: ${res.status}`);
-        }
-        return res.json();
-    })
-    .then(data => {
-        if (data.link) tg.openInvoice(data.link, (status) => {
-            if (status === 'paid') checkAccess();
-        });
-    })
-    .catch((err) => {
-        tg.showAlert(err.message || 'Ошибка создания счета');
-    });
-}
-
-// Старт
-checkAccess();
+// Запуск при открытии сайта
+initApp();
