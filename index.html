@@ -9,12 +9,10 @@
 </head>
 <body>
 
-    <!-- Экран загрузки -->
     <div id="loader">
         <div class="spinner"></div>
     </div>
 
-    <!-- Главный экран (Баннер + Категории) -->
     <div id="screen-home" class="screen active">
         <header class="top-bar">
             <div class="user-info" id="userGreeting">
@@ -30,12 +28,9 @@
         </div>
 
         <h3 class="section-title">Разделы</h3>
-        <div class="categories-grid" id="categoriesGrid">
-            <!-- Сюда рендерятся карточки категорий -->
-        </div>
+        <div class="categories-grid" id="categoriesGrid"></div>
     </div>
 
-    <!-- Экран со списком статей в категории -->
     <div id="screen-category" class="screen">
         <header class="top-bar">
             <button class="back-btn" onclick="show('home')">
@@ -45,15 +40,10 @@
             <div style="width: 24px;"></div>
         </header>
         
-        <div id="articlesList" class="articles-list">
-            <!-- Сюда рендерятся прямоугольные блоки статей -->
-        </div>
-
-        <!-- Кнопка добавления статьи (видна только админу) -->
+        <div id="articlesList" class="articles-list"></div>
         <button id="adminAddBtn" class="floating-btn" onclick="openEditModal()" style="display: none;">+</button>
     </div>
 
-    <!-- Экран чтения статьи -->
     <div id="screen-article" class="screen">
         <header class="top-bar">
             <button class="back-btn" onclick="backToCategory()">
@@ -70,7 +60,6 @@
         </div>
     </div>
 
-    <!-- Модалка редактирования (для админа) -->
     <div id="editModal" class="modal-overlay">
         <div class="modal">
             <h3 id="modalTitle">Добавить статью</h3>
@@ -81,30 +70,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
-</body>
-</html>></svg>
-            <span>Админ</span>
-        </button>
-    </div>
-
-    <!-- Модалка авторизации -->
-    <div id="authModal" class="modal-overlay">
-        <div class="modal">
-            <h3 style="text-align: center; margin-bottom: 16px;">Вход</h3>
-            <p style="text-align: center; color: var(--dim); margin-bottom: 20px; font-size: 14px;">Войдите через Telegram или по логину (для теста: admin/admin)</p>
-            <button class="btn btn-primary btn-block" id="tgLoginBtn" style="margin-bottom: 12px;">Войти через Telegram</button>
-            <div class="field">
-                <input type="text" id="loginInput" class="input" placeholder="Логин">
-            </div>
-            <div class="field">
-                <input type="password" id="passInput" class="input" placeholder="Пароль">
-            </div>
-            <button class="btn btn-block" id="emailLoginBtn">Войти</button>
-        </div>
-    </div>
-
-    <div id="toastContainer" class="toast-container"></div>
     <script src="app.js"></script>
 </body>
 </html>

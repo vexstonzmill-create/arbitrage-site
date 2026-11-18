@@ -1,4 +1,4 @@
-onst express = require('express');
+const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const { Pool } = require('pg');
@@ -10,7 +10,7 @@ app.use(express.static(__dirname));
 
 const CONFIG = {
   BOT_TOKEN: '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE',
-  ADMIN_TG_ID: 6938068102, // ⚠️ ВСТАВЬ СЮДА СВОЙ РЕАЛЬНЫЙ TG ID (узнать у @userinfobot)
+  ADMIN_TG_ID: 6938068102, // ✅ Твой ID вписан правильно, без "tg:"
   DATABASE_URL: 'postgresql://neondb_owner:npg_xN9OFsw6uCMe@ep-solitary-cloud-bahn17dh-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 };
 
@@ -19,13 +19,11 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Инициализация БД и создание стартовых статей
 async function initDB() {
   try {
     await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false);`);
     await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, updated_at TIMESTAMPTZ DEFAULT now());`);
     
-    // Проверяем, есть ли статьи. Если нет — заполняем твоими мануалами
     const check = await pool.query('SELECT count(*) FROM articles');
     if (parseInt(check.rows[0].count) === 0) {
       console.log('Заполняем базу начальными статьями...');
@@ -52,7 +50,7 @@ async function initDB() {
 Гном - дроп (лицо, дающее карту).
 Круг - работа с входящими и исходящими.
 Стяг - переводы между своими счетами.
-Прогрев - покупки для имитации реальной жизни.')
+Прогрев - покупки для имитации реальной жизни.');
       `);
     }
     console.log('✅ База данных готова');
@@ -85,7 +83,10 @@ app.post('/api/auth/telegram', async (req, res) => {
     `, [tgUser.id, tgUser.username || `user_${tgUser.id}`, tgUser.first_name || 'User', tgUser.photo_url || null, isAdmin ? 'admin' : 'user']);
     
     res.json({ token: 'token_' + tgUser.id, user: result.rows[0] });
-  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+  } catch (e) { 
+    console.error('Auth error:', e);
+    res.status(500).json({ error: 'Server error' }); 
+  }
 });
 
 app.get('/api/articles', async (req, res) => {
@@ -112,26 +113,4 @@ app.put('/api/articles/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));.json({ user: { id: 0, role: 'guest', isPaid: false } });
-
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-    if (result.rows.length === 0) return res.json({ user: { id: 0, role: 'guest', isPaid: false } });
-    res.json({ user: mapUser(result.rows[0]) });
-  } catch(e) { res.status(500).json({ error: 'DB error' }); }
-});
-
-// Маппер для фронтенда (чтобы поля совпадали с app.js)
-function mapUser(dbUser) {
-  return {
-    id: Number(dbUser.id),
-    username: dbUser.username,
-    displayName: dbUser.display_name,
-    avatarUrl: dbUser.avatar_url,
-    role: dbUser.role,
-    isPaid: dbUser.is_paid
-  };
-}
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`vxo Backend running on port ${PORT}`));}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
