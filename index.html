@@ -80,6 +80,18 @@
                 <label>Сумма сделки (₽)</label>
                 <input type="number" id="calcAmount" placeholder="10000" oninput="calcP2P()">
             </div>
+            
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <div class="input-group" style="flex: 1; margin-bottom: 0;">
+                    <label>Комиссия покупки (%)</label>
+                    <input type="number" id="calcBuyFee" placeholder="0" oninput="calcP2P()">
+                </div>
+                <div class="input-group" style="flex: 1; margin-bottom: 0;">
+                    <label>Комиссия продажи (%)</label>
+                    <input type="number" id="calcSellFee" placeholder="0" oninput="calcP2P()">
+                </div>
+            </div>
+
             <div class="calc-result">
                 <div class="res-row"><span>Спред:</span> <strong id="resSpread">0 ₽ (0%)</strong></div>
                 <div class="res-row" style="margin-top: 10px; color: var(--grn); font-size: 18px;"><span>Прибыль:</span> <strong id="resProfit">0 ₽</strong></div>
@@ -99,15 +111,27 @@
         <div id="adminPaymentsList"></div>
     </div>
 
-    <!-- НИЖНЕЕ МЕНЮ -->
-    <div class="bottom-nav">
-        <button class="nav-item active" data-target="home" onclick="show('home')">🏠<span>База</span></button>
-        <button class="nav-item" data-target="calc" onclick="show('calc')">🧮<span>Кальк</span></button>
-        <button class="nav-item" data-target="profile" onclick="show('profile')">👤<span>Профиль</span></button>
-        <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;">💳<span>Админ</span></button>
+    <!-- НИЖНЕЕ МЕНЮ (Плавающая капсула) -->
+    <div class="floating-nav">
+        <button class="nav-item active" data-target="home" onclick="show('home')">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>База</span>
+        </button>
+        <button class="nav-item" data-target="calc" onclick="show('calc')">
+            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+            <span>Кальк</span>
+        </button>
+        <button class="nav-item" data-target="profile" onclick="show('profile')">
+            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Профиль</span>
+        </button>
+        <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;">
+            <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <span>Админ</span>
+        </button>
     </div>
 
-    <!-- МОДАЛКА: ДОБАВЛЕНИЕ КАТЕГОРИИ -->
+    <!-- МОДАЛКИ -->
     <div id="catModal" class="modal-overlay">
         <div class="modal">
             <h3>Новая категория</h3>
@@ -118,7 +142,6 @@
         </div>
     </div>
 
-    <!-- МОДАЛКА: ДОБАВЛЕНИЕ/РЕДАКТИРОВАНИЕ СТАТЬИ -->
     <div id="articleModal" class="modal-overlay">
         <div class="modal">
             <h3 id="modalArtTitle">Новая статья</h3>

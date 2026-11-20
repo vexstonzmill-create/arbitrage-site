@@ -4,40 +4,70 @@ let tg = window.Telegram?.WebApp;
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (tg) { tg.ready(); tg.expand(); }
+    
+    // Скрываем лоадер через 500мс, чтобы не висел вечно
     setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
+    
     await authUser();
     await loadData();
 });
 
 async function authUser() {
+    // Если мы внутри Telegram и есть данные
     if (tg && tg.initData) {
         try {
             const res = await fetch(`${API_URL}/api/auth/telegram`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ initData: tg.initData })
             });
-            const data = await res.json();
+            
             if (res.ok) {
+                const data = await res.json();
                 state.user = data.user;
                 updateUIForUser();
+            } else {
+                // Если сервер вернул ошибку (например, 401)
+                console.warn('Сервер отклонил авторизацию Telegram');
+                fallbackUser('Ошибка входа в ТГ');
             }
-        } catch(e) { console.error('Auth error', e); }
+        } catch(e) { 
+            console.error('Ошибка сети при авторизации:', e); 
+            fallbackUser('Нет связи с сервером');
+        }
     } else {
-        state.user = { id: 6938068102, displayName: 'Админ (Браузер)', role: 'admin', avatarUrl: null, is_paid: true };
+        // Если мы в браузере (для тестов)
+        console.log('Открыто в браузере. Включаем режим Админа.');
+        state.user = { id: 6938068102, display_name: 'Админ (Браузер)', role: 'admin', avatar_url: null, is_paid: true };
         updateUIForUser();
     }
 }
 
+// Функция-спасатель, если ТГ не авторизовал
+function fallbackUser(reason) {
+    state.user = { display_name: 'Гость', username: 'guest', role: 'user', avatar_url: null, is_paid: false };
+    updateUIForUser();
+    alert('Не удалось войти через Telegram: ' + reason + '\nПопробуйте перезапустить приложение.');
+}
+
 function updateUIForUser() {
     if (!state.user) return;
-    document.getElementById('userName').textContent = state.user.display_name || state.user.displayName;
+    
+    // Убираем "Загрузка..."
+    const nameEl = document.getElementById('userName');
+    if (nameEl) nameEl.textContent = state.user.display_name || state.user.displayName || 'Гость';
+    
     const av = document.getElementById('userAvatar');
-    if (state.user.avatar_url || state.user.avatarUrl) {
-        av.innerHTML = `<img src="${state.user.avatar_url || state.user.avatarUrl}">`;
-    } else {
-        av.textContent = (state.user.display_name || state.user.displayName)[0].toUpperCase();
+    if (av) {
+        if (state.user.avatar_url || state.user.avatarUrl) {
+            av.innerHTML = `<img src="${state.user.avatar_url || state.user.avatarUrl}">`;
+        } else {
+            const initial = (state.user.display_name || state.user.displayName || 'U')[0].toUpperCase();
+            av.textContent = initial;
+        }
     }
 
+    // Показываем кнопки админа, если роль позволяет
     if (state.user.role === 'admin') {
         document.getElementById('adminAddCatBtn').style.display = 'block';
         document.getElementById('navAdminBtn').style.display = 'flex';
@@ -57,6 +87,8 @@ async function loadData() {
 
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
+    if (!grid) return;
+    
     grid.innerHTML = state.categories.map(cat => {
         const count = state.articles.filter(a => a.category === cat.name).length;
         return `
@@ -117,19 +149,35 @@ window.openArticle = (id) => {
 
 window.backToCategory = () => openCategory(state.currentCategory);
 
+// === КАЛЬКУЛЯТОР С КОМИССИЯМИ ===
 window.calcP2P = () => {
     const buy = parseFloat(document.getElementById('calcBuy').value) || 0;
     const sell = parseFloat(document.getElementById('calcSell').value) || 0;
     const amount = parseFloat(document.getElementById('calcAmount').value) || 0;
-    
-    if(!buy || !sell || !amount) return;
-    
-    const spread = sell - buy;
-    const pct = (spread / buy) * 100;
-    const profit = (amount / buy) * spread;
+    const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0;
+    const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
 
-    document.getElementById('resSpread').textContent = `${spread.toFixed(2)} ₽ (${pct.toFixed(2)}%)`;
-    document.getElementById('resProfit').textContent = `${profit.toFixed(2)} ₽`;
+    const resSpread = document.getElementById('resSpread');
+    const resProfit = document.getElementById('resProfit');
+
+    if(!buy || !sell || !amount) {
+        resSpread.textContent = '0 ₽ (0%)';
+        resProfit.textContent = '0 ₽';
+        resProfit.style.color = 'var(--grn)';
+        return;
+    }
+
+    const usdtGross = amount / buy;
+    const usdtNet = usdtGross * (1 - (buyFee / 100));
+    const rubGross = usdtNet * sell;
+    const rubNet = rubGross * (1 - (sellFee / 100));
+
+    const profit = rubNet - amount;
+    const spreadPct = ((sell - buy) / buy) * 100;
+
+    resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
+    resProfit.textContent = `${profit.toFixed(2)} ₽`;
+    resProfit.style.color = profit >= 0 ? 'var(--grn)' : '#ef4444';
 };
 
 window.show = async (screenId) => {
@@ -144,15 +192,28 @@ window.show = async (screenId) => {
 
 async function renderProfile() {
     const container = document.getElementById('profileContent');
-    if (!state.user) return;
+    
+    // ЗАЩИТА: Если юзера нет, показываем заглушку, а не пустоту
+    if (!state.user) {
+        container.innerHTML = `
+            <div style="text-align:center; padding: 40px 20px;">
+                <p style="color:var(--red); font-weight: 800; margin-bottom: 10px;">Ошибка авторизации</p>
+                <p style="color:var(--dim);">Не удалось загрузить данные пользователя. Попробуйте перезайти в приложение.</p>
+            </div>
+        `;
+        return;
+    }
     
     const isPaid = state.user.is_paid || state.user.role === 'admin';
+    const displayName = state.user.display_name || state.user.displayName || 'Пользователь';
 
     container.innerHTML = `
         <div class="glass-card" style="text-align:center; padding: 30px;">
-            <div class="avatar" style="width:80px; height:80px; font-size:32px; margin: 0 auto 16px;">${(state.user.display_name || state.user.displayName)[0].toUpperCase()}</div>
-            <h3>${state.user.display_name || state.user.displayName}</h3>
-            <p style="color:var(--dim); margin-bottom: 20px;">@${state.user.username}</p>
+            <div class="avatar" style="width:80px; height:80px; font-size:32px; margin: 0 auto 16px;">
+                ${state.user.avatar_url || state.user.avatarUrl ? `<img src="${state.user.avatar_url || state.user.avatarUrl}">` : displayName[0].toUpperCase()}
+            </div>
+            <h3>${displayName}</h3>
+            <p style="color:var(--dim); margin-bottom: 20px;">@${state.user.username || 'unknown'}</p>
             
             <div style="background: ${isPaid ? '#dcfce7' : '#fee2e2'}; color: ${isPaid ? '#166534' : '#991b1b'}; padding: 12px; border-radius: 12px; font-weight: 800; margin-bottom: 20px;">
                 ${isPaid ? '✅ Доступ открыт' : '🔒 Доступ закрыт'}
@@ -164,15 +225,17 @@ async function renderProfile() {
 }
 
 window.requestPayment = async () => {
+    if (!state.user || !state.user.id) return alert('Ошибка: нет ID пользователя');
     try {
         await fetch(`${API_URL}/api/payment-request`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: state.user.id })
         });
         alert('Заявка отправлена! Ожидайте подтверждения от админа.');
-    } catch(e) { alert('Ошибка'); }
+    } catch(e) { alert('Ошибка отправки'); }
 };
 
+// ... ОСТАЛЬНОЙ КОД (АДМИНКА, МОДАЛКИ) ОСТАЕТСЯ БЕЗ ИЗМЕНЕНИЙ ...
 async function loadAdminPayments() {
     const container = document.getElementById('adminPaymentsList');
     try {
