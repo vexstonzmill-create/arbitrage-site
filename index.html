@@ -9,13 +9,12 @@
 </head>
 <body>
 
-    <div id="loader">
-        <div class="spinner"></div>
-    </div>
+    <div id="loader"><div class="spinner"></div></div>
 
+    <!-- ЭКРАН 1: ГЛАВНАЯ -->
     <div id="screen-home" class="screen active">
         <header class="top-bar">
-            <div class="user-info" id="userGreeting">
+            <div class="user-info">
                 <span class="greet">Привет 👋</span>
                 <span class="name" id="userName">Загрузка...</span>
             </div>
@@ -27,46 +26,107 @@
             <p>Всё самое важное в одном месте. Выбирай раздел и прокачивайся.</p>
         </div>
 
-        <h3 class="section-title">Разделы</h3>
+        <div class="flex-between">
+            <h3 class="section-title">Разделы</h3>
+            <button id="adminAddCatBtn" class="btn-icon" onclick="openCatModal()" style="display: none;">+</button>
+        </div>
+        
         <div class="categories-grid" id="categoriesGrid"></div>
     </div>
 
+    <!-- ЭКРАН 2: СПИСОК СТАТЕЙ -->
     <div id="screen-category" class="screen">
         <header class="top-bar">
             <button class="back-btn" onclick="show('home')">
                 <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
             <h2 id="categoryTitle" style="font-size: 18px; font-weight: 800;">Категория</h2>
-            <div style="width: 24px;"></div>
+            <div style="width: 40px;"></div>
         </header>
-        
         <div id="articlesList" class="articles-list"></div>
-        <button id="adminAddBtn" class="floating-btn" onclick="openEditModal()" style="display: none;">+</button>
+        <button id="adminAddArtBtn" class="floating-btn" onclick="openArticleModal()" style="display: none;">+</button>
     </div>
 
+    <!-- ЭКРАН 3: ЧТЕНИЕ СТАТЬИ -->
     <div id="screen-article" class="screen">
         <header class="top-bar">
             <button class="back-btn" onclick="backToCategory()">
                 <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
             <h2 style="font-size: 16px; font-weight: 800; color: var(--dim);">Чтение</h2>
-            <button class="edit-btn" id="adminEditBtn" onclick="openEditModal(true)" style="display: none;">✏️</button>
+            <button class="edit-btn" id="adminEditArtBtn" onclick="openArticleModal(true)" style="display: none;">✏️</button>
         </header>
-
         <div class="article-content">
             <h1 id="articleTitle"></h1>
             <div class="article-date" id="articleDate"></div>
+            <img id="articleImage" class="article-image" style="display: none;">
             <div class="article-text" id="articleText"></div>
         </div>
     </div>
 
-    <div id="editModal" class="modal-overlay">
+    <!-- ЭКРАН 4: КАЛЬКУЛЯТОР -->
+    <div id="screen-calc" class="screen">
+        <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 900;">Калькулятор 📈</h2>
+        <div class="glass-card">
+            <div class="input-group">
+                <label>Курс покупки (₽)</label>
+                <input type="number" id="calcBuy" placeholder="80" oninput="calcP2P()">
+            </div>
+            <div class="input-group">
+                <label>Курс продажи (₽)</label>
+                <input type="number" id="calcSell" placeholder="85" oninput="calcP2P()">
+            </div>
+            <div class="input-group">
+                <label>Сумма сделки (₽)</label>
+                <input type="number" id="calcAmount" placeholder="10000" oninput="calcP2P()">
+            </div>
+            <div class="calc-result">
+                <div class="res-row"><span>Спред:</span> <strong id="resSpread">0 ₽ (0%)</strong></div>
+                <div class="res-row" style="margin-top: 10px; color: var(--grn); font-size: 18px;"><span>Прибыль:</span> <strong id="resProfit">0 ₽</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 5: ПРОФИЛЬ -->
+    <div id="screen-profile" class="screen">
+        <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 900;">Профиль 👤</h2>
+        <div id="profileContent"></div>
+    </div>
+
+    <!-- ЭКРАН 6: АДМИНКА -->
+    <div id="screen-admin" class="screen">
+        <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 900;">Заявки на оплату 💰</h2>
+        <div id="adminPaymentsList"></div>
+    </div>
+
+    <!-- НИЖНЕЕ МЕНЮ -->
+    <div class="bottom-nav">
+        <button class="nav-item active" data-target="home" onclick="show('home')">🏠<span>База</span></button>
+        <button class="nav-item" data-target="calc" onclick="show('calc')">🧮<span>Кальк</span></button>
+        <button class="nav-item" data-target="profile" onclick="show('profile')">👤<span>Профиль</span></button>
+        <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;">💳<span>Админ</span></button>
+    </div>
+
+    <!-- МОДАЛКА: ДОБАВЛЕНИЕ КАТЕГОРИИ -->
+    <div id="catModal" class="modal-overlay">
         <div class="modal">
-            <h3 id="modalTitle">Добавить статью</h3>
+            <h3>Новая категория</h3>
+            <input type="text" id="newCatName" class="input" placeholder="Название (напр. Биржи)" style="margin-bottom: 12px;">
+            <input type="text" id="newCatIcon" class="input" placeholder="Эмодзи (напр. 🪙)" style="margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="saveCategory()">Создать</button>
+            <button class="btn btn-ghost" onclick="closeModal('catModal')">Отмена</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА: ДОБАВЛЕНИЕ/РЕДАКТИРОВАНИЕ СТАТЬИ -->
+    <div id="articleModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modalArtTitle">Новая статья</h3>
             <input type="text" id="editTitle" class="input" placeholder="Заголовок" style="margin-bottom: 12px;">
-            <textarea id="editContent" class="input" rows="8" placeholder="Текст статьи..." style="margin-bottom: 12px;"></textarea>
+            <input type="text" id="editImage" class="input" placeholder="Ссылка на фото (URL)" style="margin-bottom: 12px;">
+            <textarea id="editContent" class="input" rows="6" placeholder="Текст статьи..." style="margin-bottom: 16px;"></textarea>
             <button class="btn btn-primary" onclick="saveArticle()">Сохранить</button>
-            <button class="btn btn-ghost" onclick="closeModal('editModal')" style="margin-top: 8px;">Отмена</button>
+            <button class="btn btn-ghost" onclick="closeModal('articleModal')">Отмена</button>
         </div>
     </div>
 

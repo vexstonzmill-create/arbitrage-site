@@ -10,7 +10,7 @@ app.use(express.static(__dirname));
 
 const CONFIG = {
   BOT_TOKEN: '9049997738:AAGgB6hc5MBs7GdmcTLH7A3kREGvyaOpoxE',
-  ADMIN_TG_ID: 6938068102, // ✅ Твой ID вписан правильно, без "tg:"
+  ADMIN_TG_ID: 6938068102, 
   DATABASE_URL: 'postgresql://neondb_owner:npg_xN9OFsw6uCMe@ep-solitary-cloud-bahn17dh-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 };
 
@@ -22,38 +22,25 @@ const pool = new Pool({
 async function initDB() {
   try {
     await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false);`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, updated_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT, color TEXT);`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, updated_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT now());`);
     
-    const check = await pool.query('SELECT count(*) FROM articles');
-    if (parseInt(check.rows[0].count) === 0) {
-      console.log('Заполняем базу начальными статьями...');
+    const checkCats = await pool.query('SELECT count(*) FROM categories');
+    if (parseInt(checkCats.rows[0].count) === 0) {
+      await pool.query(`INSERT INTO categories (name, icon, color) VALUES ('Мануалы', '🏦', 'g1'), ('Связки', '🔗', 'g2'), ('Термины', '📚', 'g3'), ('Безопасность', '🛡️', 'g4');`);
+    }
+
+    const checkArts = await pool.query('SELECT count(*) FROM articles');
+    if (parseInt(checkArts.rows[0].count) === 0) {
       await pool.query(`
-        INSERT INTO articles (category, title, content) VALUES 
-        ('Мануалы', 'Банк ПСБ и Альфа 🏦', 'Самые стабильные банки — ПСБ и Альфа. 
-— 4–5 платежей в день.
-— Остаток на карте 2000–4000 рублей.
-— Траты около 1500 рублей в день (аптеки, магазины).
-— Прогрев 3–4 дня, потом 2 дня отлёга.
-ПСБ блоки снимаются за 15 дней. Альфа — 14+ лет, запуск с 9 до 00.'),
-        ('Связки', 'Связка Таиланд 🇹🇭', 'Ордер на покупку по 33 THB, лимит от 5000 THB. 
-Создаётся ордер на продажу по 40 THB. 
-30к/33 = 909 USDT. 30к/40 = 750 USDT. 
-Разница ~159 USDT (13-14к руб) с одной сделки! 🚀'),
-        ('Связки', 'Связка Bybit-HTX 📈', 'Мейкер на Bybit, Тейкер на HTX.
-1. Объявление на Bybit на покупку по 80,6 ₽.
-2. Сделка на HTX на продажу по 83,8 ₽.
-3. Передаются реквизиты. Чистыми ~4-4.5%.
-⚠️ HTX в санкционном списке!'),
-        ('Термины', 'Словарь Арбитражника 📚', 'КА - Контрагент (постоянный клиент).
-Ферма - 1-3 чека в сутки.
-Агроферма - от 50 до 300к в сутки.
-Гном - дроп (лицо, дающее карту).
-Круг - работа с входящими и исходящими.
-Стяг - переводы между своими счетами.
-Прогрев - покупки для имитации реальной жизни.');
+        INSERT INTO articles (category, title, content, image_url) VALUES 
+        ('Мануалы', 'Банк ПСБ и Альфа 🏦', 'Самые стабильные банки — ПСБ и Альфа. \n— 4–5 платежей в день.\n— Остаток на карте 2000–4000 рублей.\n— Траты около 1500 рублей в день.\n— Прогрев 3–4 дня, потом 2 дня отлёга.', 'https://images.unsplash.com/photo-1601597111158-2fceff292cdc?q=80&w=600&auto=format&fit=crop'),
+        ('Связки', 'Связка Таиланд 🇹🇭', 'Ордер на покупку по 33 THB, лимит от 5000 THB. \nСоздаётся ордер на продажу по 40 THB. \nРазница ~159 USDT (13-14к руб) с одной сделки! 🚀', 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=600&auto=format&fit=crop'),
+        ('Термины', 'Словарь Арбитражника 📚', 'КА - Контрагент (постоянный клиент).\nФерма - 1-3 чека в сутки.\nАгроферма - от 50 до 300к в сутки.\nГном - дроп.\nКруг - работа с входящими и исходящими.\nСтяг - переводы между своими счетами.', '');
       `);
     }
-    console.log('✅ База данных готова');
+    console.log('✅ База данных и таблицы готовы');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
 }
 initDB();
@@ -83,31 +70,72 @@ app.post('/api/auth/telegram', async (req, res) => {
     `, [tgUser.id, tgUser.username || `user_${tgUser.id}`, tgUser.first_name || 'User', tgUser.photo_url || null, isAdmin ? 'admin' : 'user']);
     
     res.json({ token: 'token_' + tgUser.id, user: result.rows[0] });
-  } catch (e) { 
-    console.error('Auth error:', e);
-    res.status(500).json({ error: 'Server error' }); 
-  }
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
-app.get('/api/articles', async (req, res) => {
+app.get('/api/data', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM articles ORDER BY updated_at DESC');
-    res.json({ articles: result.rows });
+    const cats = await pool.query('SELECT * FROM categories ORDER BY id ASC');
+    const arts = await pool.query('SELECT * FROM articles ORDER BY updated_at DESC');
+    res.json({ categories: cats.rows, articles: arts.rows });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
 app.post('/api/articles', async (req, res) => {
-  const { category, title, content } = req.body;
+  const { category, title, content, image_url } = req.body;
   try {
-    await pool.query('INSERT INTO articles (category, title, content) VALUES ($1, $2, $3)', [category, title, content]);
+    await pool.query('INSERT INTO articles (category, title, content, image_url) VALUES ($1, $2, $3, $4)', [category, title, content, image_url]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
 app.put('/api/articles/:id', async (req, res) => {
-  const { title, content } = req.body;
+  const { title, content, image_url } = req.body;
   try {
-    await pool.query('UPDATE articles SET title = $1, content = $2, updated_at = now() WHERE id = $3', [title, content, req.params.id]);
+    await pool.query('UPDATE articles SET title = $1, content = $2, image_url = $3, updated_at = now() WHERE id = $4', [title, content, image_url, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.post('/api/categories', async (req, res) => {
+  const { name, icon } = req.body;
+  const colors = ['g1', 'g2', 'g3', 'g4'];
+  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+  try {
+    await pool.query('INSERT INTO categories (name, icon, color) VALUES ($1, $2, $3)', [name, icon || '📄', randomColor]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Категория уже существует' }); }
+});
+
+app.post('/api/payment-request', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const check = await pool.query('SELECT * FROM payment_requests WHERE user_id = $1 AND status = $2', [userId, 'pending']);
+    if (check.rows.length > 0) return res.json({ success: true, message: 'Заявка уже отправлена' });
+    
+    await pool.query('INSERT INTO payment_requests (user_id) VALUES ($1)', [userId]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.get('/api/admin/payments', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT pr.id, pr.created_at, u.display_name, u.username, u.id as user_id
+      FROM payment_requests pr
+      JOIN users u ON pr.user_id = u.id
+      WHERE pr.status = 'pending'
+      ORDER BY pr.created_at DESC
+    `);
+    res.json({ requests: result.rows });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.post('/api/admin/approve-payment', async (req, res) => {
+  const { requestId, userId } = req.body;
+  try {
+    await pool.query('UPDATE users SET is_paid = true WHERE id = $1', [userId]);
+    await pool.query('UPDATE payment_requests SET status = $1 WHERE id = $2', ['approved', requestId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
