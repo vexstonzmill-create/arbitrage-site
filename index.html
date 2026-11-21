@@ -120,11 +120,7 @@
     <!-- ЭКРАН 5: ПРОФИЛЬ -->
     <div id="screen-profile" class="screen">
         <h1 class="page-title" style="margin-bottom: 24px;">Профиль</h1>
-        
-        <!-- Блок профиля -->
         <div id="profileContent"></div>
-
-        <!-- Блок статистики -->
         <div style="margin-top: 30px;">
             <h2 class="section-title" style="margin-bottom: 16px;">Моя статистика 📊</h2>
             <div class="dark-card" style="margin-bottom: 16px;">
@@ -178,6 +174,9 @@
             <button class="btn btn-ghost" onclick="closeModal('articleModal')">Отмена</button>
         </div>
     </div>
+
+    <!-- Контейнер для красивых уведомлений -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="app.js"></script>
 </body>

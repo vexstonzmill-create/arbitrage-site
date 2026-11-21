@@ -21,39 +21,15 @@ const pool = new Pool({
 
 async function initDB() {
   try {
-    // Существующие таблицы
     await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false);`);
     await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT, color TEXT);`);
     await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, updated_at TIMESTAMPTZ DEFAULT now());`);
     await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS calc_history (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, buy_rate NUMERIC, sell_rate NUMERIC, amount NUMERIC, profit NUMERIC, created_at TIMESTAMPTZ DEFAULT now());`);
     
-    // НОВАЯ ТАБЛИЦА: История расчетов
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS calc_history (
-        id SERIAL PRIMARY KEY, 
-        user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, 
-        buy_rate NUMERIC,
-        sell_rate NUMERIC,
-        amount NUMERIC,
-        profit NUMERIC,
-        created_at TIMESTAMPTZ DEFAULT now()
-      );
-    `);
-    
-    // Заполнение стартовых данных
     const checkCats = await pool.query('SELECT count(*) FROM categories');
     if (parseInt(checkCats.rows[0].count) === 0) {
       await pool.query(`INSERT INTO categories (name, icon, color) VALUES ('Мануалы', '🏦', 'g1'), ('Связки', '🔗', 'g2'), ('Термины', '📚', 'g3'), ('Безопасность', '🛡️', 'g4');`);
-    }
-
-    const checkArts = await pool.query('SELECT count(*) FROM articles');
-    if (parseInt(checkArts.rows[0].count) === 0) {
-      await pool.query(`
-        INSERT INTO articles (category, title, content, image_url) VALUES 
-        ('Мануалы', 'Банк ПСБ и Альфа 🏦', 'Самые стабильные банки — ПСБ и Альфа. \n— 4–5 платежей в день.\n— Остаток на карте 2000–4000 рублей.\n— Траты около 1500 рублей в день.\n— Прогрев 3–4 дня, потом 2 дня отлёга.', 'https://images.unsplash.com/photo-1601597111158-2fceff292cdc?q=80&w=600&auto=format&fit=crop'),
-        ('Связки', 'Связка Таиланд 🇹🇭', 'Ордер на покупку по 33 THB, лимит от 5000 THB. \nСоздаётся ордер на продажу по 40 THB. \nРазница ~159 USDT (13-14к руб) с одной сделки! 🚀', 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=600&auto=format&fit=crop'),
-        ('Термины', 'Словарь Арбитражника 📚', 'КА - Контрагент (постоянный клиент).\nФерма - 1-3 чека в сутки.\nАгроферма - от 50 до 300к в сутки.\nГном - дроп.\nКруг - работа с входящими и исходящими.\nСтяг - переводы между своими счетами.', '');
-      `);
     }
     console.log('✅ База данных и таблицы готовы');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
@@ -85,7 +61,10 @@ app.post('/api/auth/telegram', async (req, res) => {
     `, [tgUser.id, tgUser.username || `user_${tgUser.id}`, tgUser.first_name || 'User', tgUser.photo_url || null, isAdmin ? 'admin' : 'user']);
     
     res.json({ token: 'token_' + tgUser.id, user: result.rows[0] });
-  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+  } catch (e) { 
+    console.error('Ошибка авторизации:', e);
+    res.status(500).json({ error: 'Server error' }); 
+  }
 });
 
 app.get('/api/data', async (req, res) => {
@@ -96,7 +75,6 @@ app.get('/api/data', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- СТАТИСТИКА КАЛЬКУЛЯТОРА ---
 app.post('/api/calc-save', async (req, res) => {
   const { userId, buy_rate, sell_rate, amount, profit } = req.body;
   try {
@@ -118,7 +96,6 @@ app.get('/api/calc-history/:userId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- УПРАВЛЕНИЕ СТАТЬЯМИ И КАТЕГОРИЯМИ ---
 app.post('/api/articles', async (req, res) => {
   const { category, title, content, image_url } = req.body;
   try {
@@ -143,6 +120,47 @@ app.post('/api/categories', async (req, res) => {
     await pool.query('INSERT INTO categories (name, icon, color) VALUES ($1, $2, $3)', [name, icon || '📄', randomColor]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Категория уже существует' }); }
+});
+
+app.post('/api/payment-request', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const check = await pool.query('SELECT * FROM payment_requests WHERE user_id = $1 AND status = $2', [userId, 'pending']);
+    if (check.rows.length > 0) return res.json({ success: true, message: 'Заявка уже отправлена' });
+    
+    await pool.query('INSERT INTO payment_requests (user_id) VALUES ($1)', [userId]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+// Защищенный роут админки (чтобы не было "Ошибка загрузки" при пустой базе)
+app.get('/api/admin/payments', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT pr.id, pr.created_at, u.display_name, u.username, u.id as user_id
+      FROM payment_requests pr
+      JOIN users u ON pr.user_id = u.id
+      WHERE pr.status = 'pending'
+      ORDER BY pr.created_at DESC
+    `);
+    res.json({ requests: result.rows });
+  } catch (e) { 
+    console.error('Ошибка админки:', e.message);
+    res.json({ requests: [] }); // Отдаем пустой массив вместо 500-й
+  }
+});
+
+app.post('/api/admin/approve-payment', async (req, res) => {
+  const { requestId, userId } = req.body;
+  try {
+    await pool.query('UPDATE users SET is_paid = true WHERE id = $1', [userId]);
+    await pool.query('UPDATE payment_requests SET status = $1 WHERE id = $2', ['approved', requestId]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));tatus(500).json({ error: 'Категория уже существует' }); }
 });
 
 // --- ОПЛАТА ---

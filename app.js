@@ -2,6 +2,22 @@ const API_URL = window.location.origin;
 let state = { user: null, categories: [], articles: [], currentCategory: null, currentArticle: null };
 let tg = window.Telegram?.WebApp;
 
+// Красивые уведомления
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = '0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     if (tg) { tg.ready(); tg.expand(); }
     setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
@@ -27,11 +43,11 @@ async function authUser() {
             state.user = data.user;
             updateUIForUser();
         } else {
-            alert(`Ошибка входа ТГ. Код: ${res.status}`);
+            showToast(`Ошибка входа ТГ. Код: ${res.status}`, 'error');
             fallbackUser();
         }
     } catch(e) { 
-        alert('Ошибка сети при входе.');
+        showToast('Ошибка сети при входе.', 'error');
         fallbackUser();
     }
 }
@@ -88,6 +104,7 @@ function renderCategories() {
 
 window.openCategory = (catName) => {
     state.currentCategory = catName;
+    state.currentArticle = null; // СБРАСЫВАЕМ ТЕКУЩУЮ СТАТЬЮ, чтобы не редактировать старое
     document.getElementById('categoryTitle').textContent = catName;
     
     const list = document.getElementById('articlesList');
@@ -168,11 +185,11 @@ window.resetCalc = () => {
     document.getElementById('calcAmount').value = '';
     document.getElementById('calcBuyFee').value = '';
     document.getElementById('calcSellFee').value = '';
-    calcP2P(); // Сбрасываем результат
+    calcP2P();
 };
 
 window.saveCalc = async () => {
-    if (!state.user || !state.user.id) return alert('Нужно авторизоваться!');
+    if (!state.user || !state.user.id) return showToast('Нужно авторизоваться!', 'error');
     
     const buy = parseFloat(document.getElementById('calcBuy').value);
     const sell = parseFloat(document.getElementById('calcSell').value);
@@ -180,9 +197,8 @@ window.saveCalc = async () => {
     const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0;
     const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
 
-    if(!buy || !sell || !amount) return alert('Заполните основные поля (Курсы и Сумму)');
+    if(!buy || !sell || !amount) return showToast('Заполните основные поля', 'error');
 
-    // Считаем профит
     const usdtGross = amount / buy;
     const usdtNet = usdtGross * (1 - (buyFee / 100));
     const rubGross = usdtNet * sell;
@@ -190,13 +206,17 @@ window.saveCalc = async () => {
     const profit = rubNet - amount;
 
     try {
-        await fetch(`${API_URL}/api/calc-save`, {
+        const res = await fetch(`${API_URL}/api/calc-save`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: state.user.id, buy_rate: buy, sell_rate: sell, amount: amount, profit: profit })
         });
-        alert('Расчет добавлен в статистику! 📊');
-        resetCalc();
-    } catch(e) { alert('Ошибка сохранения'); }
+        if (res.ok) {
+            showToast('Расчет добавлен в статистику! 📊', 'success');
+            resetCalc();
+        } else {
+            showToast('Ошибка сервера при сохранении', 'error');
+        }
+    } catch(e) { showToast('Ошибка сети', 'error'); }
 };
 
 // === НАВИГАЦИЯ И ПРОФИЛЬ ===
@@ -254,7 +274,7 @@ async function loadCalcHistory() {
 
         let total = 0;
         list.innerHTML = data.history.map(item => {
-            const p = parseFloat(item.profit);
+            const p = parseFloat(item.profit) || 0;
             total += p;
             const isPos = p >= 0;
             return `
@@ -278,12 +298,16 @@ async function loadCalcHistory() {
 // === АДМИНКА ===
 async function loadAdminPayments() {
     const container = document.getElementById('adminPaymentsList');
+    if (!container) return;
+    
     try {
         const res = await fetch(`${API_URL}/api/admin/payments`);
+        if (!res.ok) throw new Error('Network response was not ok');
+        
         const data = await res.json();
         
-        if(!data.requests.length) {
-            container.innerHTML = '<p style="text-align:center; color:var(--dim);">Нет новых заявок</p>';
+        if(!data.requests || data.requests.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:var(--dim); padding: 20px;">Нет новых заявок</p>';
             return;
         }
 
@@ -294,29 +318,38 @@ async function loadAdminPayments() {
                 <button class="btn btn-primary" onclick="approvePayment(${r.id}, ${r.user_id})" style="padding: 10px;">Подтвердить оплату</button>
             </div>
         `).join('');
-    } catch(e) { container.innerHTML = 'Ошибка загрузки'; }
+    } catch(e) { 
+        container.innerHTML = '<p style="text-align:center; color:var(--red); padding: 20px;">Ошибка загрузки данных</p>'; 
+    }
 }
 
 window.approvePayment = async (requestId, userId) => {
     try {
-        await fetch(`${API_URL}/api/admin/approve-payment`, {
+        const res = await fetch(`${API_URL}/api/admin/approve-payment`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ requestId, userId })
         });
-        alert('Оплата подтверждена!');
-        loadAdminPayments();
-    } catch(e) { alert('Ошибка'); }
+        if (res.ok) {
+            showToast('Оплата подтверждена!', 'success');
+            loadAdminPayments();
+        } else {
+            showToast('Ошибка при подтверждении', 'error');
+        }
+    } catch(e) { showToast('Ошибка сети', 'error'); }
 };
 
 // === УПРАВЛЕНИЕ СТАТЬЯМИ ===
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
+
 window.openArticleModal = (isEdit = false) => {
-    document.getElementById('modalArtTitle').textContent = isEdit ? 'Редактировать статью' : 'Новая статья';
     if(isEdit && state.currentArticle) {
+        document.getElementById('modalArtTitle').textContent = 'Редактировать статью';
         document.getElementById('editTitle').value = state.currentArticle.title;
         document.getElementById('editImage').value = state.currentArticle.image_url || '';
         document.getElementById('editContent').value = state.currentArticle.content;
     } else {
+        state.currentArticle = null; // ЖЕСТКИЙ СБРОС ПЕРЕД СОЗДАНИЕМ НОВОЙ
+        document.getElementById('modalArtTitle').textContent = 'Новая статья';
         document.getElementById('editTitle').value = '';
         document.getElementById('editImage').value = '';
         document.getElementById('editContent').value = '';
@@ -329,33 +362,59 @@ window.closeModal = (id) => document.getElementById(id).classList.remove('active
 window.saveCategory = async () => {
     const name = document.getElementById('newCatName').value;
     const icon = document.getElementById('newCatIcon').value || '📄';
-    if(!name) return alert('Введите название');
+    if(!name) return showToast('Введите название', 'error');
     
-    await fetch(`${API_URL}/api/categories`, {
+    const res = await fetch(`${API_URL}/api/categories`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, icon })
     });
-    closeModal('catModal');
-    loadData(); 
+    
+    if(res.ok) {
+        closeModal('catModal');
+        showToast('Категория создана!', 'success');
+        loadData(); 
+    } else {
+        showToast('Такая категория уже есть', 'error');
+    }
 };
 
 window.saveArticle = async () => {
     const title = document.getElementById('editTitle').value;
     const content = document.getElementById('editContent').value;
     const image_url = document.getElementById('editImage').value;
-    if(!title || !content) return alert('Заполните поля');
+    if(!title || !content) return showToast('Заполните заголовок и текст', 'error');
 
-    const isEdit = !!state.currentArticle;
+    const isEdit = !!state.currentArticle; // Проверяем, редактируем или создаем
     const url = isEdit ? `${API_URL}/api/articles/${state.currentArticle.id}` : `${API_URL}/api/articles`;
     
-    await fetch(url, {
-        method: isEdit ? 'PUT' : 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content, image_url, category: state.currentCategory })
-    });
-    
-    closeModal('articleModal');
-    await loadData();
-    if(isEdit) openArticle(state.currentArticle.id);
-    else openCategory(state.currentCategory);
+    const payload = { title, content, image_url };
+    if (!isEdit) payload.category = state.currentCategory;
+
+    try {
+        const res = await fetch(url, {
+            method: isEdit ? 'PUT' : 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+            closeModal('articleModal');
+            showToast(isEdit ? 'Статья обновлена!' : 'Статья создана!', 'success');
+            
+            // Перезагружаем данные с сервера
+            await loadData(); 
+            
+            if(isEdit) {
+                // Открываем обновленную статью по её ID
+                openArticle(state.currentArticle.id);
+            } else {
+                // Возвращаемся в категорию
+                openCategory(state.currentCategory);
+            }
+        } else {
+            showToast('Ошибка при сохранении на сервере', 'error');
+        }
+    } catch(e) {
+        showToast('Ошибка сети при сохранении', 'error');
+    }
 };
