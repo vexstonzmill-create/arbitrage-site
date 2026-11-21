@@ -4,72 +4,57 @@ let tg = window.Telegram?.WebApp;
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (tg) { tg.ready(); tg.expand(); }
-    
-    // Скрываем лоадер через 500мс, чтобы не висел вечно
     setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
-    
     await authUser();
     await loadData();
 });
 
 async function authUser() {
-    // Если мы внутри Telegram и есть данные
-    if (tg && tg.initData) {
-        try {
-            const res = await fetch(`${API_URL}/api/auth/telegram`, {
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ initData: tg.initData })
-            });
-            
-            if (res.ok) {
-                const data = await res.json();
-                state.user = data.user;
-                updateUIForUser();
-            } else {
-                // Если сервер вернул ошибку (например, 401)
-                console.warn('Сервер отклонил авторизацию Telegram');
-                fallbackUser('Ошибка входа в ТГ');
-            }
-        } catch(e) { 
-            console.error('Ошибка сети при авторизации:', e); 
-            fallbackUser('Нет связи с сервером');
-        }
-    } else {
-        // Если мы в браузере (для тестов)
-        console.log('Открыто в браузере. Включаем режим Админа.');
+    if (!tg || !tg.initData) {
         state.user = { id: 6938068102, display_name: 'Админ (Браузер)', role: 'admin', avatar_url: null, is_paid: true };
         updateUIForUser();
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/api/auth/telegram`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            state.user = data.user;
+            updateUIForUser();
+        } else {
+            alert(`Ошибка входа ТГ. Код: ${res.status}`);
+            fallbackUser();
+        }
+    } catch(e) { 
+        alert('Ошибка сети при входе.');
+        fallbackUser();
     }
 }
 
-// Функция-спасатель, если ТГ не авторизовал
-function fallbackUser(reason) {
+function fallbackUser() {
     state.user = { display_name: 'Гость', username: 'guest', role: 'user', avatar_url: null, is_paid: false };
     updateUIForUser();
-    alert('Не удалось войти через Telegram: ' + reason + '\nПопробуйте перезапустить приложение.');
 }
 
 function updateUIForUser() {
     if (!state.user) return;
-    
-    // Убираем "Загрузка..."
-    const nameEl = document.getElementById('userName');
-    if (nameEl) nameEl.textContent = state.user.display_name || state.user.displayName || 'Гость';
-    
     const av = document.getElementById('userAvatar');
     if (av) {
         if (state.user.avatar_url || state.user.avatarUrl) {
             av.innerHTML = `<img src="${state.user.avatar_url || state.user.avatarUrl}">`;
         } else {
-            const initial = (state.user.display_name || state.user.displayName || 'U')[0].toUpperCase();
-            av.textContent = initial;
+            av.textContent = (state.user.display_name || state.user.displayName || 'U')[0].toUpperCase();
         }
     }
 
-    // Показываем кнопки админа, если роль позволяет
-    if (state.user.role === 'admin') {
-        document.getElementById('adminAddCatBtn').style.display = 'block';
+    const isAdmin = state.user.role === 'admin' || state.user.id === 6938068102;
+    if (isAdmin) {
+        document.getElementById('adminAddCatBtn').style.display = 'flex';
         document.getElementById('navAdminBtn').style.display = 'flex';
         document.getElementById('adminAddArtBtn').style.display = 'flex';
     }
@@ -88,11 +73,10 @@ async function loadData() {
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
     if (!grid) return;
-    
     grid.innerHTML = state.categories.map(cat => {
         const count = state.articles.filter(a => a.category === cat.name).length;
         return `
-        <div class="cat-card ${cat.color || 'g1'}" onclick="openCategory('${cat.name}')">
+        <div class="cat-card" onclick="openCategory('${cat.name}')">
             <div class="icon">${cat.icon}</div>
             <div>
                 <h4>${cat.name}</h4>
@@ -139,17 +123,15 @@ window.openArticle = (id) => {
         img.style.display = 'none';
     }
 
-    if (state.user?.role === 'admin') {
-        document.getElementById('adminEditArtBtn').style.display = 'block';
-    } else {
-        document.getElementById('adminEditArtBtn').style.display = 'none';
-    }
+    const isAdmin = state.user?.role === 'admin' || state.user?.id === 6938068102;
+    document.getElementById('adminEditArtBtn').style.display = isAdmin ? 'flex' : 'none';
+    
     show('article');
 };
 
 window.backToCategory = () => openCategory(state.currentCategory);
 
-// === КАЛЬКУЛЯТОР С КОМИССИЯМИ ===
+// === КАЛЬКУЛЯТОР ===
 window.calcP2P = () => {
     const buy = parseFloat(document.getElementById('calcBuy').value) || 0;
     const sell = parseFloat(document.getElementById('calcSell').value) || 0;
@@ -177,65 +159,123 @@ window.calcP2P = () => {
 
     resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
     resProfit.textContent = `${profit.toFixed(2)} ₽`;
-    resProfit.style.color = profit >= 0 ? 'var(--grn)' : '#ef4444';
+    resProfit.style.color = profit >= 0 ? 'var(--grn)' : 'var(--red)';
 };
 
+window.resetCalc = () => {
+    document.getElementById('calcBuy').value = '';
+    document.getElementById('calcSell').value = '';
+    document.getElementById('calcAmount').value = '';
+    document.getElementById('calcBuyFee').value = '';
+    document.getElementById('calcSellFee').value = '';
+    calcP2P(); // Сбрасываем результат
+};
+
+window.saveCalc = async () => {
+    if (!state.user || !state.user.id) return alert('Нужно авторизоваться!');
+    
+    const buy = parseFloat(document.getElementById('calcBuy').value);
+    const sell = parseFloat(document.getElementById('calcSell').value);
+    const amount = parseFloat(document.getElementById('calcAmount').value);
+    const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0;
+    const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
+
+    if(!buy || !sell || !amount) return alert('Заполните основные поля (Курсы и Сумму)');
+
+    // Считаем профит
+    const usdtGross = amount / buy;
+    const usdtNet = usdtGross * (1 - (buyFee / 100));
+    const rubGross = usdtNet * sell;
+    const rubNet = rubGross * (1 - (sellFee / 100));
+    const profit = rubNet - amount;
+
+    try {
+        await fetch(`${API_URL}/api/calc-save`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: state.user.id, buy_rate: buy, sell_rate: sell, amount: amount, profit: profit })
+        });
+        alert('Расчет добавлен в статистику! 📊');
+        resetCalc();
+    } catch(e) { alert('Ошибка сохранения'); }
+};
+
+// === НАВИГАЦИЯ И ПРОФИЛЬ ===
 window.show = async (screenId) => {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-' + screenId).classList.add('active');
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.querySelector(`.nav-item[data-target="${screenId}"]`)?.classList.add('active');
 
-    if (screenId === 'profile') renderProfile();
+    if (screenId === 'profile') {
+        renderProfile();
+        loadCalcHistory();
+    }
     if (screenId === 'admin') loadAdminPayments();
 };
 
 async function renderProfile() {
     const container = document.getElementById('profileContent');
-    
-    // ЗАЩИТА: Если юзера нет, показываем заглушку, а не пустоту
-    if (!state.user) {
-        container.innerHTML = `
-            <div style="text-align:center; padding: 40px 20px;">
-                <p style="color:var(--red); font-weight: 800; margin-bottom: 10px;">Ошибка авторизации</p>
-                <p style="color:var(--dim);">Не удалось загрузить данные пользователя. Попробуйте перезайти в приложение.</p>
-            </div>
-        `;
-        return;
-    }
+    if (!state.user) return;
     
     const isPaid = state.user.is_paid || state.user.role === 'admin';
     const displayName = state.user.display_name || state.user.displayName || 'Пользователь';
 
     container.innerHTML = `
-        <div class="glass-card" style="text-align:center; padding: 30px;">
-            <div class="avatar" style="width:80px; height:80px; font-size:32px; margin: 0 auto 16px;">
+        <div class="dark-card" style="text-align:center; padding: 24px;">
+            <div class="avatar" style="width:70px; height:70px; font-size:28px; margin: 0 auto 16px; border: 2px solid var(--dim);">
                 ${state.user.avatar_url || state.user.avatarUrl ? `<img src="${state.user.avatar_url || state.user.avatarUrl}">` : displayName[0].toUpperCase()}
             </div>
-            <h3>${displayName}</h3>
+            <h3 style="color:#fff;">${displayName}</h3>
             <p style="color:var(--dim); margin-bottom: 20px;">@${state.user.username || 'unknown'}</p>
             
-            <div style="background: ${isPaid ? '#dcfce7' : '#fee2e2'}; color: ${isPaid ? '#166534' : '#991b1b'}; padding: 12px; border-radius: 12px; font-weight: 800; margin-bottom: 20px;">
+            <div style="background: ${isPaid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${isPaid ? 'var(--grn)' : 'var(--red)'}; padding: 12px; border-radius: 16px; font-weight: 800; font-size: 15px;">
                 ${isPaid ? '✅ Доступ открыт' : '🔒 Доступ закрыт'}
             </div>
-
-            ${!isPaid ? `<button class="btn btn-primary" onclick="requestPayment()">Купить доступ (30$)</button>` : ''}
         </div>
     `;
 }
 
-window.requestPayment = async () => {
-    if (!state.user || !state.user.id) return alert('Ошибка: нет ID пользователя');
+async function loadCalcHistory() {
+    if (!state.user || !state.user.id) return;
+    
+    const list = document.getElementById('calcHistoryList');
+    const totalEl = document.getElementById('totalProfit');
+    
     try {
-        await fetch(`${API_URL}/api/payment-request`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: state.user.id })
-        });
-        alert('Заявка отправлена! Ожидайте подтверждения от админа.');
-    } catch(e) { alert('Ошибка отправки'); }
-};
+        const res = await fetch(`${API_URL}/api/calc-history/${state.user.id}`);
+        const data = await res.json();
+        
+        if (!data.history || data.history.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color:var(--dim); font-size:14px;">История расчетов пуста</p>';
+            totalEl.textContent = '0 ₽';
+            totalEl.style.color = 'var(--txt)';
+            return;
+        }
 
-// ... ОСТАЛЬНОЙ КОД (АДМИНКА, МОДАЛКИ) ОСТАЕТСЯ БЕЗ ИЗМЕНЕНИЙ ...
+        let total = 0;
+        list.innerHTML = data.history.map(item => {
+            const p = parseFloat(item.profit);
+            total += p;
+            const isPos = p >= 0;
+            return `
+                <div class="stat-item">
+                    <div>
+                        <div style="font-weight: 700; color: #fff;">${item.amount} ₽</div>
+                        <div class="info">Куп: ${item.buy_rate} / Прод: ${item.sell_rate}</div>
+                    </div>
+                    <div class="profit ${isPos ? 'positive' : 'negative'}">
+                        ${isPos ? '+' : ''}${p.toFixed(2)} ₽
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        totalEl.textContent = `${total >= 0 ? '+' : ''}${total.toFixed(2)} ₽`;
+        totalEl.style.color = total >= 0 ? 'var(--grn)' : 'var(--red)';
+    } catch(e) { console.error(e); }
+}
+
+// === АДМИНКА ===
 async function loadAdminPayments() {
     const container = document.getElementById('adminPaymentsList');
     try {
@@ -268,9 +308,10 @@ window.approvePayment = async (requestId, userId) => {
     } catch(e) { alert('Ошибка'); }
 };
 
+// === УПРАВЛЕНИЕ СТАТЬЯМИ ===
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
 window.openArticleModal = (isEdit = false) => {
-    document.getElementById('modalArtTitle').textContent = isEdit ? 'Редактировать' : 'Новая статья';
+    document.getElementById('modalArtTitle').textContent = isEdit ? 'Редактировать статью' : 'Новая статья';
     if(isEdit && state.currentArticle) {
         document.getElementById('editTitle').value = state.currentArticle.title;
         document.getElementById('editImage').value = state.currentArticle.image_url || '';

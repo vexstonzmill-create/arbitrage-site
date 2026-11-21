@@ -21,11 +21,26 @@ const pool = new Pool({
 
 async function initDB() {
   try {
+    // Существующие таблицы
     await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false);`);
     await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT, color TEXT);`);
     await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, updated_at TIMESTAMPTZ DEFAULT now());`);
     await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT now());`);
     
+    // НОВАЯ ТАБЛИЦА: История расчетов
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS calc_history (
+        id SERIAL PRIMARY KEY, 
+        user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, 
+        buy_rate NUMERIC,
+        sell_rate NUMERIC,
+        amount NUMERIC,
+        profit NUMERIC,
+        created_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+    
+    // Заполнение стартовых данных
     const checkCats = await pool.query('SELECT count(*) FROM categories');
     if (parseInt(checkCats.rows[0].count) === 0) {
       await pool.query(`INSERT INTO categories (name, icon, color) VALUES ('Мануалы', '🏦', 'g1'), ('Связки', '🔗', 'g2'), ('Термины', '📚', 'g3'), ('Безопасность', '🛡️', 'g4');`);
@@ -81,6 +96,29 @@ app.get('/api/data', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
+// --- СТАТИСТИКА КАЛЬКУЛЯТОРА ---
+app.post('/api/calc-save', async (req, res) => {
+  const { userId, buy_rate, sell_rate, amount, profit } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO calc_history (user_id, buy_rate, sell_rate, amount, profit) VALUES ($1, $2, $3, $4, $5)',
+      [userId, buy_rate, sell_rate, amount, profit]
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.get('/api/calc-history/:userId', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM calc_history WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.params.userId]
+    );
+    res.json({ history: result.rows });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+// --- УПРАВЛЕНИЕ СТАТЬЯМИ И КАТЕГОРИЯМИ ---
 app.post('/api/articles', async (req, res) => {
   const { category, title, content, image_url } = req.body;
   try {
@@ -107,6 +145,7 @@ app.post('/api/categories', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Категория уже существует' }); }
 });
 
+// --- ОПЛАТА ---
 app.post('/api/payment-request', async (req, res) => {
   const { userId } = req.body;
   try {

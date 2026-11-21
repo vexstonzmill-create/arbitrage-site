@@ -3,31 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>W.I.C - База Знаний</title>
+    <title>VXO P2P - База Знаний</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-theme="dark">
 
     <div id="loader"><div class="spinner"></div></div>
 
     <!-- ЭКРАН 1: ГЛАВНАЯ -->
     <div id="screen-home" class="screen active">
         <header class="top-bar">
-            <div class="user-info">
-                <span class="greet">Привет 👋</span>
-                <span class="name" id="userName">Загрузка...</span>
-            </div>
+            <h1 class="page-title">VXO P2P</h1>
             <div class="avatar" id="userAvatar">U</div>
         </header>
 
-        <div class="banner">
-            <h1>База Знаний P2P</h1>
-            <p>Всё самое важное в одном месте. Выбирай раздел и прокачивайся.</p>
+        <div class="hero-cards">
+            <div class="hero-card big">
+                <div class="card-icon">📚</div>
+                <div class="card-info">
+                    <h2>База Знаний</h2>
+                    <p>Всё самое важное в одном месте.</p>
+                </div>
+            </div>
+            <div class="hero-card small" onclick="show('calc')">
+                <div class="card-icon">🧮</div>
+                <div class="card-info">
+                    <h2>Калькулятор</h2>
+                    <p>Считай профит</p>
+                </div>
+            </div>
         </div>
 
-        <div class="flex-between">
-            <h3 class="section-title">Разделы</h3>
+        <div class="flex-between" style="margin-top: 24px;">
+            <h2 class="section-title">Разделы</h2>
             <button id="adminAddCatBtn" class="btn-icon" onclick="openCatModal()" style="display: none;">+</button>
         </div>
         
@@ -40,11 +49,10 @@
             <button class="back-btn" onclick="show('home')">
                 <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
-            <h2 id="categoryTitle" style="font-size: 18px; font-weight: 800;">Категория</h2>
-            <div style="width: 40px;"></div>
+            <h2 id="categoryTitle" class="page-title" style="font-size: 20px;">Категория</h2>
+            <button id="adminAddArtBtn" class="btn-icon" onclick="openArticleModal()" style="display: none;">+</button>
         </header>
         <div id="articlesList" class="articles-list"></div>
-        <button id="adminAddArtBtn" class="floating-btn" onclick="openArticleModal()" style="display: none;">+</button>
     </div>
 
     <!-- ЭКРАН 3: ЧТЕНИЕ СТАТЬИ -->
@@ -66,8 +74,12 @@
 
     <!-- ЭКРАН 4: КАЛЬКУЛЯТОР -->
     <div id="screen-calc" class="screen">
-        <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 900;">Калькулятор 📈</h2>
-        <div class="glass-card">
+        <div class="flex-between" style="margin-bottom: 24px;">
+            <h1 class="page-title">Калькулятор</h1>
+            <button class="btn-icon" onclick="resetCalc()" title="Сбросить всё">↻</button>
+        </div>
+        
+        <div class="dark-card">
             <div class="input-group">
                 <label>Курс покупки (₽)</label>
                 <input type="number" id="calcBuy" placeholder="80" oninput="calcP2P()">
@@ -94,40 +106,54 @@
 
             <div class="calc-result">
                 <div class="res-row"><span>Спред:</span> <strong id="resSpread">0 ₽ (0%)</strong></div>
-                <div class="res-row" style="margin-top: 10px; color: var(--grn); font-size: 18px;"><span>Прибыль:</span> <strong id="resProfit">0 ₽</strong></div>
+                <div class="res-row" style="margin-top: 12px; font-size: 20px;"><span>Прибыль:</span> <strong id="resProfit" style="color: var(--grn);">0 ₽</strong></div>
+            </div>
+
+            <!-- Кнопки управления калькулятором -->
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <button class="btn btn-ghost" onclick="resetCalc()" style="flex: 1; border: 1px solid var(--card-border);">Сброс</button>
+                <button class="btn btn-primary" onclick="saveCalc()" style="flex: 2;">Добавить в статистику</button>
             </div>
         </div>
     </div>
 
     <!-- ЭКРАН 5: ПРОФИЛЬ -->
     <div id="screen-profile" class="screen">
-        <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 900;">Профиль 👤</h2>
+        <h1 class="page-title" style="margin-bottom: 24px;">Профиль</h1>
+        
+        <!-- Блок профиля -->
         <div id="profileContent"></div>
+
+        <!-- Блок статистики -->
+        <div style="margin-top: 30px;">
+            <h2 class="section-title" style="margin-bottom: 16px;">Моя статистика 📊</h2>
+            <div class="dark-card" style="margin-bottom: 16px;">
+                <div style="font-size: 13px; color: var(--dim); margin-bottom: 4px;">Общая прибыль:</div>
+                <div id="totalProfit" style="font-size: 32px; font-weight: 800; color: var(--grn);">0 ₽</div>
+            </div>
+            <div id="calcHistoryList" class="articles-list"></div>
+        </div>
     </div>
 
     <!-- ЭКРАН 6: АДМИНКА -->
     <div id="screen-admin" class="screen">
-        <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 900;">Заявки на оплату 💰</h2>
+        <h1 class="page-title" style="margin-bottom: 24px;">Заявки 💰</h1>
         <div id="adminPaymentsList"></div>
     </div>
 
-    <!-- НИЖНЕЕ МЕНЮ (Плавающая капсула) -->
+    <!-- НИЖНЕЕ МЕНЮ -->
     <div class="floating-nav">
         <button class="nav-item active" data-target="home" onclick="show('home')">
-            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span>База</span>
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         </button>
         <button class="nav-item" data-target="calc" onclick="show('calc')">
             <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
-            <span>Кальк</span>
         </button>
         <button class="nav-item" data-target="profile" onclick="show('profile')">
             <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span>Профиль</span>
         </button>
         <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;">
             <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            <span>Админ</span>
         </button>
     </div>
 
