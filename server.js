@@ -22,14 +22,18 @@ const pool = new Pool({
 async function initDB() {
   try {
     await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false);`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT, color TEXT);`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT);`);
     await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, updated_at TIMESTAMPTZ DEFAULT now());`);
     await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT now());`);
     await pool.query(`CREATE TABLE IF NOT EXISTS calc_history (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, buy_rate NUMERIC, sell_rate NUMERIC, amount NUMERIC, profit NUMERIC, created_at TIMESTAMPTZ DEFAULT now());`);
     
+    // Новые таблицы
+    await pool.query(`CREATE TABLE IF NOT EXISTS requisites (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, bank_name TEXT, card_number TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, type TEXT, amount NUMERIC, description TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
+
     const checkCats = await pool.query('SELECT count(*) FROM categories');
     if (parseInt(checkCats.rows[0].count) === 0) {
-      await pool.query(`INSERT INTO categories (name, icon, color) VALUES ('Мануалы', '🏦', 'g1'), ('Связки', '🔗', 'g2'), ('Термины', '📚', 'g3'), ('Безопасность', '🛡️', 'g4');`);
+      await pool.query(`INSERT INTO categories (name, icon) VALUES ('Мануалы', '🏦'), ('Связки', '🔗'), ('Термины', '📚'), ('Безопасность', '🛡️');`);
     }
     console.log('✅ База данных готова');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
@@ -54,12 +58,9 @@ app.post('/api/auth/telegram', async (req, res) => {
   
   try {
     const tgUserStr = new URLSearchParams(initData).get('user');
-    if (!tgUserStr) return res.status(400).json({ error: 'No user string' });
-    
     const tgUser = JSON.parse(tgUserStr);
-    if (!tgUser || !tgUser.id) return res.status(400).json({ error: 'No user ID' });
-
     const isAdmin = Number(tgUser.id) === Number(CONFIG.ADMIN_TG_ID);
+    
     const result = await pool.query(`
       INSERT INTO users (id, username, display_name, avatar_url, role) 
       VALUES ($1, $2, $3, $4, $5) 
@@ -69,8 +70,7 @@ app.post('/api/auth/telegram', async (req, res) => {
     
     res.json({ token: 'token_' + tgUser.id, user: result.rows[0] });
   } catch (e) { 
-    console.error('Auth error:', e);
-    res.status(500).json({ error: e.message }); // Отдаем точную ошибку
+    res.status(500).json({ error: e.message }); 
   }
 });
 
@@ -82,28 +82,39 @@ app.get('/api/data', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-app.post('/api/calc-save', async (req, res) => {
-  const { userId, buy_rate, sell_rate, amount, profit } = req.body;
+// --- РЕКВИЗИТЫ ---
+app.get('/api/requisites/:userId', async (req, res) => {
   try {
-    if (!userId) throw new Error('No user ID provided');
-    await pool.query(
-      'INSERT INTO calc_history (user_id, buy_rate, sell_rate, amount, profit) VALUES ($1, $2, $3, $4, $5)',
-      [userId, buy_rate, sell_rate, amount, profit]
-    );
-    res.json({ success: true });
-  } catch (e) { 
-    console.error('Calc error:', e.message);
-    res.status(500).json({ error: e.message }); 
-  }
-});
-
-app.get('/api/calc-history/:userId', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM calc_history WHERE user_id = $1 ORDER BY created_at DESC', [req.params.userId]);
-    res.json({ history: result.rows });
+    const result = await pool.query('SELECT * FROM requisites WHERE user_id = $1 ORDER BY created_at DESC', [req.params.userId]);
+    res.json({ items: result.rows });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
+app.post('/api/requisites', async (req, res) => {
+  const { userId, bank_name, card_number } = req.body;
+  try {
+    await pool.query('INSERT INTO requisites (user_id, bank_name, card_number) VALUES ($1, $2, $3)', [userId, bank_name, card_number]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+// --- ТРАНЗАКЦИИ ---
+app.get('/api/transactions/:userId', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC', [req.params.userId]);
+    res.json({ items: result.rows });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.post('/api/transactions', async (req, res) => {
+  const { userId, type, amount, description } = req.body;
+  try {
+    await pool.query('INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)', [userId, type, amount, description]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+// --- СТАТЬИ ---
 app.post('/api/articles', async (req, res) => {
   const { category, title, content, image_url } = req.body;
   try {
@@ -120,16 +131,22 @@ app.put('/api/articles/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
+app.delete('/api/articles/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM articles WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
 app.post('/api/categories', async (req, res) => {
   const { name, icon } = req.body;
-  const colors = ['g1', 'g2', 'g3', 'g4'];
-  const randomColor = colors[Math.floor(Math.random() * colors.length)];
   try {
-    await pool.query('INSERT INTO categories (name, icon, color) VALUES ($1, $2, $3)', [name, icon || '📄', randomColor]);
+    await pool.query('INSERT INTO categories (name, icon) VALUES ($1, $2)', [name, icon || '📄']);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Exists' }); }
 });
 
+// --- ОПЛАТА ---
 app.post('/api/payment-request', async (req, res) => {
   const { userId } = req.body;
   try {
@@ -144,10 +161,8 @@ app.get('/api/admin/payments', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT pr.id, pr.created_at, u.display_name, u.username, u.id as user_id
-      FROM payment_requests pr
-      JOIN users u ON pr.user_id = u.id
-      WHERE pr.status = 'pending'
-      ORDER BY pr.created_at DESC
+      FROM payment_requests pr JOIN users u ON pr.user_id = u.id
+      WHERE pr.status = 'pending' ORDER BY pr.created_at DESC
     `);
     res.json({ requests: result.rows });
   } catch (e) { res.json({ requests: [] }); }
@@ -159,6 +174,22 @@ app.post('/api/admin/approve-payment', async (req, res) => {
     await pool.query('UPDATE users SET is_paid = true WHERE id = $1', [userId]);
     await pool.query('UPDATE payment_requests SET status = $1 WHERE id = $2', ['approved', requestId]);
     res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+// --- КАЛЬКУЛЯТОР (ИСТОРИЯ) ---
+app.post('/api/calc-save', async (req, res) => {
+  const { userId, buy_rate, sell_rate, amount, profit } = req.body;
+  try {
+    await pool.query('INSERT INTO calc_history (user_id, buy_rate, sell_rate, amount, profit) VALUES ($1, $2, $3, $4, $5)', [userId, buy_rate, sell_rate, amount, profit]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.get('/api/calc-history/:userId', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM calc_history WHERE user_id = $1 ORDER BY created_at DESC', [req.params.userId]);
+    res.json({ history: result.rows });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 

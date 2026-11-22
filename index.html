@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VXO P2P - База Знаний</title>
+    <title>VXO P2P</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
-<body data-theme="dark">
+<body>
 
     <div id="loader"><div class="spinner"></div></div>
 
@@ -18,29 +19,50 @@
             <div class="avatar" id="userAvatar">U</div>
         </header>
 
-        <div class="hero-cards">
-            <div class="hero-card big">
-                <div class="card-icon">📚</div>
-                <div class="card-info">
-                    <h2>База Знаний</h2>
-                    <p>Всё самое важное в одном месте.</p>
-                </div>
-            </div>
-            <div class="hero-card small" onclick="show('calc')">
-                <div class="card-icon">🧮</div>
-                <div class="card-info">
-                    <h2>Калькулятор</h2>
-                    <p>Считай профит</p>
-                </div>
-            </div>
+        <div class="banner">
+            <h2>База Знаний</h2>
+            <p>Твой путь в P2P начинается здесь.</p>
+            <div class="banner-icon">🚀</div>
         </div>
 
         <div class="flex-between" style="margin-top: 24px;">
             <h2 class="section-title">Разделы</h2>
             <button id="adminAddCatBtn" class="btn-icon" onclick="openCatModal()" style="display: none;">+</button>
         </div>
-        
         <div class="categories-grid" id="categoriesGrid"></div>
+
+        <!-- Блоки ссылок -->
+        <h2 class="section-title" style="margin-top: 30px;">Ссылки</h2>
+        <div class="links-grid">
+            <div class="link-card" onclick="openExchange()">
+                <div class="link-icon">💱</div>
+                <div class="link-info">
+                    <h4>Биржа</h4>
+                    <p>Vexo P2P (В разработке)</p>
+                </div>
+            </div>
+            <a href="https://t.me/+DcaKm7NHJlFkMjEy" target="_blank" class="link-card">
+                <div class="link-icon">✈️</div>
+                <div class="link-info">
+                    <h4>Telegram 1</h4>
+                    <p>Основной канал</p>
+                </div>
+            </a>
+            <a href="https://t.me/+YOWC4f8ZoyswNDli" target="_blank" class="link-card">
+                <div class="link-icon">✈️</div>
+                <div class="link-info">
+                    <h4>Telegram 2</h4>
+                    <p>Чат обменник</p>
+                </div>
+            </a>
+            <a href="https://t.me/+-HHK4s6lmNc0MDIy" target="_blank" class="link-card">
+                <div class="link-icon">✈️</div>
+                <div class="link-info">
+                    <h4>Telegram 3</h4>
+                    <p>Новости</p>
+                </div>
+            </a>
+        </div>
     </div>
 
     <!-- ЭКРАН 2: СПИСОК СТАТЕЙ -->
@@ -72,12 +94,10 @@
         </div>
     </div>
 
-    <!-- ЭКРАН 4: КАЛЬКУЛЯТОР (НОВЫЙ ДИЗАЙН) -->
+    <!-- ЭКРАН 4: КАЛЬКУЛЯТОР -->
     <div id="screen-calc" class="screen">
         <h1 class="page-title" style="margin-bottom: 24px;">Калькулятор</h1>
-        
         <div class="calc-box">
-            <!-- Сетка курсов -->
             <div class="calc-grid">
                 <div class="calc-input-wrap">
                     <label>Курс покупки</label>
@@ -88,14 +108,10 @@
                     <input type="number" id="calcSell" placeholder="85.00" oninput="calcP2P()">
                 </div>
             </div>
-
-            <!-- Сумма сделки -->
             <div class="calc-input-wrap" style="margin-bottom: 12px;">
                 <label>Сумма сделки (₽)</label>
                 <input type="number" id="calcAmount" placeholder="10 000" oninput="calcP2P()" style="font-size: 24px; height: 64px;">
             </div>
-
-            <!-- Сетка комиссий -->
             <div class="calc-grid">
                 <div class="calc-input-wrap">
                     <label>Ком. покупки (%)</label>
@@ -107,23 +123,13 @@
                 </div>
             </div>
         </div>
-
-        <!-- Результат -->
         <div class="calc-result-box">
-            <div class="res-row-small">
-                <span>Спред:</span>
-                <strong id="resSpread">0 ₽ (0%)</strong>
-            </div>
-            <div class="res-row-big">
-                <span>Прибыль:</span>
-                <strong id="resProfit" style="color: var(--grn);">0 ₽</strong>
-            </div>
+            <div class="res-row-small"><span>Спред:</span> <strong id="resSpread">0 ₽ (0%)</strong></div>
+            <div class="res-row-big"><span>Прибыль:</span> <strong id="resProfit" style="color: var(--grn);">0 ₽</strong></div>
         </div>
-
-        <!-- Кнопки -->
         <div style="display: flex; gap: 12px; margin-top: 24px;">
-            <button class="btn btn-ghost" onclick="resetCalc()" style="flex: 1; border: 1px solid var(--card-border); font-size: 15px;">Сброс</button>
-            <button class="btn btn-primary" onclick="saveCalc()" style="flex: 2; font-size: 15px;">В статистику</button>
+            <button class="btn btn-ghost" onclick="resetCalc()" style="flex: 1;">Сброс</button>
+            <button class="btn btn-primary" onclick="saveCalc()" style="flex: 2;">В статистику</button>
         </div>
     </div>
 
@@ -131,13 +137,20 @@
     <div id="screen-profile" class="screen">
         <h1 class="page-title" style="margin-bottom: 24px;">Профиль</h1>
         <div id="profileContent"></div>
-        <div style="margin-top: 30px;">
-            <h2 class="section-title" style="margin-bottom: 16px;">Моя статистика 📊</h2>
-            <div class="dark-card" style="margin-bottom: 16px;">
-                <div style="font-size: 13px; color: var(--dim); margin-bottom: 4px;">Общая прибыль:</div>
-                <div id="totalProfit" style="font-size: 32px; font-weight: 800; color: var(--grn);">0 ₽</div>
+
+        <div id="financeSection" style="display: none;">
+            <h2 class="section-title" style="margin: 30px 0 16px;">Финансы 💰</h2>
+            <div class="finance-grid">
+                <div class="fin-card green"><span>Доход</span><strong id="totalIncome">0 ₽</strong></div>
+                <div class="fin-card red"><span>Расход</span><strong id="totalExpense">0 ₽</strong></div>
+                <div class="fin-card blue"><span>Прибыль</span><strong id="netProfit">0 ₽</strong></div>
             </div>
-            <div id="calcHistoryList" class="articles-list"></div>
+            <button class="btn btn-primary" onclick="openTransModal()" style="margin-top: 16px; margin-bottom: 16px;">Добавить операцию</button>
+            <div id="transactionsList" class="articles-list"></div>
+
+            <h2 class="section-title" style="margin: 30px 0 16px;">Мои реквизиты 💳</h2>
+            <button class="btn btn-ghost" onclick="openReqModal()" style="border: 1px solid var(--card-border); margin-bottom: 16px;">Добавить реквизит</button>
+            <div id="requisitesList" class="articles-list"></div>
         </div>
     </div>
 
@@ -147,19 +160,29 @@
         <div id="adminPaymentsList"></div>
     </div>
 
-    <!-- НИЖНЕЕ МЕНЮ -->
+    <!-- НИЖНЕЕ МЕНЮ (Floating) -->
     <div class="floating-nav">
         <button class="nav-item active" data-target="home" onclick="show('home')">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            <span>Главная</span>
         </button>
         <button class="nav-item" data-target="calc" onclick="show('calc')">
-            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg>
+            <span>Кальк</span>
         </button>
+        
+        <!-- Центральная кнопка -->
+        <div class="nav-center-btn" onclick="openQuickAction()">
+            <svg viewBox="0 0 24 24" stroke="#fff" stroke-width="3" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+
         <button class="nav-item" data-target="profile" onclick="show('profile')">
             <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Профиль</span>
         </button>
         <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;">
             <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <span>Админ</span>
         </button>
     </div>
 
@@ -167,8 +190,8 @@
     <div id="catModal" class="modal-overlay">
         <div class="modal">
             <h3>Новая категория</h3>
-            <input type="text" id="newCatName" class="input" placeholder="Название (напр. Биржи)" style="margin-bottom: 12px;">
-            <input type="text" id="newCatIcon" class="input" placeholder="Эмодзи (напр. 🪙)" style="margin-bottom: 16px;">
+            <input type="text" id="newCatName" class="input" placeholder="Название" style="margin-bottom: 12px;">
+            <input type="text" id="newCatIcon" class="input" placeholder="Эмодзи" style="margin-bottom: 16px;">
             <button class="btn btn-primary" onclick="saveCategory()">Создать</button>
             <button class="btn btn-ghost" onclick="closeModal('catModal')">Отмена</button>
         </div>
@@ -181,7 +204,45 @@
             <input type="text" id="editImage" class="input" placeholder="Ссылка на фото (URL)" style="margin-bottom: 12px;">
             <textarea id="editContent" class="input" rows="6" placeholder="Текст статьи..." style="margin-bottom: 16px;"></textarea>
             <button class="btn btn-primary" onclick="saveArticle()">Сохранить</button>
+            <button class="btn btn-danger" id="deleteArtBtn" onclick="deleteArticle()" style="display: none; margin-top: 10px;">Удалить статью</button>
             <button class="btn btn-ghost" onclick="closeModal('articleModal')">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Модалка финансов -->
+    <div id="transModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Новая операция</h3>
+            <select id="transType" class="input" style="margin-bottom: 12px;">
+                <option value="income">Доход (+)</option>
+                <option value="expense">Расход (-)</option>
+            </select>
+            <input type="number" id="transAmount" class="input" placeholder="Сумма (₽)" style="margin-bottom: 12px;">
+            <input type="text" id="transDesc" class="input" placeholder="Описание" style="margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="saveTransaction()">Добавить</button>
+            <button class="btn btn-ghost" onclick="closeModal('transModal')">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Модалка реквизитов -->
+    <div id="reqModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Новый реквизит</h3>
+            <input type="text" id="reqBank" class="input" placeholder="Банк (напр. Сбер)" style="margin-bottom: 12px;">
+            <input type="text" id="reqCard" class="input" placeholder="Номер карты / Телефона" style="margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="saveRequisite()">Сохранить</button>
+            <button class="btn btn-ghost" onclick="closeModal('reqModal')">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Модалка "Купить доступ" (Paywall) -->
+    <div id="paywallModal" class="modal-overlay">
+        <div class="modal" style="text-align: center;">
+            <div style="font-size: 50px; margin-bottom: 16px;">🔒</div>
+            <h3>Доступ закрыт</h3>
+            <p style="color: var(--dim); font-size: 14px; margin-bottom: 20px;">Чтобы читать статьи, необходимо приобрести доступ.</p>
+            <button class="btn btn-primary" onclick="requestPayment()">Купить за 30$</button>
+            <button class="btn btn-ghost" onclick="closeModal('paywallModal')">Отмена</button>
         </div>
     </div>
 

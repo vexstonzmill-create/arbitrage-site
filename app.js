@@ -4,16 +4,11 @@ let tg = window.Telegram?.WebApp;
 
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
-    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
     container.appendChild(toast);
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transition = '0.3s';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -29,27 +24,19 @@ async function authUser() {
         updateUIForUser();
         return;
     }
-
     try {
         const res = await fetch(`${API_URL}/api/auth/telegram`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ initData: tg.initData })
         });
-        
         if (res.ok) {
             const data = await res.json();
             state.user = data.user;
             updateUIForUser();
         } else {
-            const errData = await res.json().catch(() => ({}));
-            // Выводим точную ошибку от сервера
-            showToast(`Ошибка ТГ: ${errData.error || res.status}`, 'error');
             fallbackUser();
         }
-    } catch(e) { 
-        showToast('Ошибка сети при входе', 'error');
-        fallbackUser();
-    }
+    } catch(e) { fallbackUser(); }
 }
 
 function fallbackUser() {
@@ -67,7 +54,6 @@ function updateUIForUser() {
             av.textContent = (state.user.display_name || state.user.displayName || 'U')[0].toUpperCase();
         }
     }
-
     const isAdmin = state.user.role === 'admin' || state.user.id === 6938068102;
     if (isAdmin) {
         document.getElementById('adminAddCatBtn').style.display = 'flex';
@@ -83,12 +69,11 @@ async function loadData() {
         state.categories = data.categories || [];
         state.articles = data.articles || [];
         renderCategories();
-    } catch(e) { console.error('Load error', e); }
+    } catch(e) { console.error(e); }
 }
 
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
-    if (!grid) return;
     grid.innerHTML = state.categories.map(cat => {
         const count = state.articles.filter(a => a.category === cat.name).length;
         return `
@@ -106,10 +91,8 @@ window.openCategory = (catName) => {
     state.currentCategory = catName;
     state.currentArticle = null;
     document.getElementById('categoryTitle').textContent = catName;
-    
     const list = document.getElementById('articlesList');
     const filtered = state.articles.filter(a => a.category === catName);
-    
     list.innerHTML = filtered.length ? filtered.map(art => `
         <div class="article-item" onclick="openArticle(${art.id})">
             <div>
@@ -119,11 +102,16 @@ window.openCategory = (catName) => {
             <div class="arrow">›</div>
         </div>
     `).join('') : '<p style="text-align:center; color:var(--dim);">Здесь пока пусто...</p>';
-
     show('category');
 };
 
 window.openArticle = (id) => {
+    // ПРОВЕРКА ПОДПИСКИ
+    if (!state.user.is_paid && state.user.role !== 'admin') {
+        document.getElementById('paywallModal').classList.add('active');
+        return;
+    }
+
     const art = state.articles.find(a => a.id === id);
     if (!art) return;
     state.currentArticle = art;
@@ -133,12 +121,7 @@ window.openArticle = (id) => {
     document.getElementById('articleText').textContent = art.content;
     
     const img = document.getElementById('articleImage');
-    if (art.image_url) {
-        img.src = art.image_url;
-        img.style.display = 'block';
-    } else {
-        img.style.display = 'none';
-    }
+    if (art.image_url) { img.src = art.image_url; img.style.display = 'block'; } else { img.style.display = 'none'; }
 
     const isAdmin = state.user?.role === 'admin' || state.user?.id === 6938068102;
     document.getElementById('adminEditArtBtn').style.display = isAdmin ? 'flex' : 'none';
@@ -159,19 +142,11 @@ window.calcP2P = () => {
     const resProfit = document.getElementById('resProfit');
 
     if(!buy || !sell || !amount) {
-        resSpread.textContent = '0 ₽ (0%)';
-        resProfit.textContent = '0 ₽';
-        resProfit.style.color = 'var(--grn)';
-        return;
+        resSpread.textContent = '0 ₽ (0%)'; resProfit.textContent = '0 ₽'; resProfit.style.color = 'var(--grn)'; return;
     }
-
-    const usdtGross = amount / buy;
-    const usdtNet = usdtGross * (1 - (buyFee / 100));
-    const rubGross = usdtNet * sell;
-    const rubNet = rubGross * (1 - (sellFee / 100));
-
-    const profit = rubNet - amount;
-    const spreadPct = ((sell - buy) / buy) * 100;
+    const usdtGross = amount / buy; const usdtNet = usdtGross * (1 - (buyFee / 100));
+    const rubGross = usdtNet * sell; const rubNet = rubGross * (1 - (sellFee / 100));
+    const profit = rubNet - amount; const spreadPct = ((sell - buy) / buy) * 100;
 
     resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
     resProfit.textContent = `${profit.toFixed(2)} ₽`;
@@ -179,43 +154,22 @@ window.calcP2P = () => {
 };
 
 window.resetCalc = () => {
-    document.getElementById('calcBuy').value = '';
-    document.getElementById('calcSell').value = '';
-    document.getElementById('calcAmount').value = '';
-    document.getElementById('calcBuyFee').value = '';
-    document.getElementById('calcSellFee').value = '';
-    calcP2P();
+    document.getElementById('calcBuy').value = ''; document.getElementById('calcSell').value = ''; document.getElementById('calcAmount').value = ''; document.getElementById('calcBuyFee').value = ''; document.getElementById('calcSellFee').value = ''; calcP2P();
 };
 
 window.saveCalc = async () => {
-    if (!state.user || !state.user.id) return showToast('Ошибка: нет ID пользователя. Войдите заново.', 'error');
-    
-    const buy = parseFloat(document.getElementById('calcBuy').value);
-    const sell = parseFloat(document.getElementById('calcSell').value);
-    const amount = parseFloat(document.getElementById('calcAmount').value);
-    const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0;
-    const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
+    if (!state.user || !state.user.id) return showToast('Ошибка: нет ID', 'error');
+    const buy = parseFloat(document.getElementById('calcBuy').value); const sell = parseFloat(document.getElementById('calcSell').value); const amount = parseFloat(document.getElementById('calcAmount').value);
+    const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0; const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
+    if(!buy || !sell || !amount) return showToast('Заполните поля', 'error');
 
-    if(!buy || !sell || !amount) return showToast('Заполните основные поля', 'error');
-
-    const usdtGross = amount / buy;
-    const usdtNet = usdtGross * (1 - (buyFee / 100));
-    const rubGross = usdtNet * sell;
-    const rubNet = rubGross * (1 - (sellFee / 100));
+    const usdtGross = amount / buy; const usdtNet = usdtGross * (1 - (buyFee / 100));
+    const rubGross = usdtNet * sell; const rubNet = rubGross * (1 - (sellFee / 100));
     const profit = rubNet - amount;
 
     try {
-        const res = await fetch(`${API_URL}/api/calc-save`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: state.user.id, buy_rate: buy, sell_rate: sell, amount: amount, profit: profit })
-        });
-        if (res.ok) {
-            showToast('Расчет добавлен! 📊', 'success');
-            resetCalc();
-        } else {
-            const errData = await res.json().catch(() => ({}));
-            showToast(`Ошибка: ${errData.error || 'Сервер занят'}`, 'error');
-        }
+        const res = await fetch(`${API_URL}/api/calc-save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, buy_rate: buy, sell_rate: sell, amount: amount, profit: profit }) });
+        if (res.ok) { showToast('Расчет добавлен!', 'success'); resetCalc(); } else { showToast('Ошибка', 'error'); }
     } catch(e) { showToast('Ошибка сети', 'error'); }
 };
 
@@ -228,131 +182,147 @@ window.show = async (screenId) => {
 
     if (screenId === 'profile') {
         renderProfile();
-        loadCalcHistory();
+        if (state.user && state.user.is_paid) {
+            document.getElementById('financeSection').style.display = 'block';
+            loadTransactions(); loadRequisites();
+        } else {
+            document.getElementById('financeSection').style.display = 'none';
+        }
     }
     if (screenId === 'admin') loadAdminPayments();
+};
+
+window.openExchange = () => { showToast('Биржа в разработке, ожидается! 🛠', 'info'); };
+
+// Центральная кнопка
+window.openQuickAction = () => {
+    if (!state.user.is_paid) return showToast('Купите доступ для использования', 'error');
+    const isAdmin = state.user.role === 'admin';
+    if (isAdmin) { openArticleModal(); } else { openTransModal(); }
 };
 
 async function renderProfile() {
     const container = document.getElementById('profileContent');
     if (!state.user) return;
-    
     const isPaid = state.user.is_paid || state.user.role === 'admin';
     const displayName = state.user.display_name || state.user.displayName || 'Пользователь';
 
     container.innerHTML = `
-        <div class="dark-card" style="text-align:center; padding: 24px;">
-            <div class="avatar" style="width:70px; height:70px; font-size:28px; margin: 0 auto 16px; border: 2px solid var(--dim);">
+        <div class="card" style="text-align:center; padding: 24px; background:#fff; border-radius:24px; box-shadow: var(--shadow);">
+            <div class="avatar" style="width:70px; height:70px; font-size:28px; margin: 0 auto 16px; background:#f0f0f0; color:#000;">
                 ${state.user.avatar_url || state.user.avatarUrl ? `<img src="${state.user.avatar_url || state.user.avatarUrl}">` : displayName[0].toUpperCase()}
             </div>
-            <h3 style="color:#fff;">${displayName}</h3>
+            <h3 style="color:#000; font-size: 20px;">${displayName}</h3>
             <p style="color:var(--dim); margin-bottom: 20px;">@${state.user.username || 'unknown'}</p>
             
-            <div style="background: ${isPaid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${isPaid ? 'var(--grn)' : 'var(--red)'}; padding: 12px; border-radius: 16px; font-weight: 800; font-size: 15px;">
-                ${isPaid ? '✅ Доступ открыт' : '🔒 Доступ закрыт'}
+            <div style="background: ${isPaid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${isPaid ? 'var(--grn)' : 'var(--red)'}; padding: 12px; border-radius: 16px; font-weight: 800; font-size: 15px;">
+                ${isPaid ? '✅ Доступ открыт' : '🔒 Требуется подписка'}
             </div>
+            ${!isPaid ? `<button class="btn btn-primary" onclick="requestPayment()" style="margin-top:16px;">Купить доступ</button>` : ''}
         </div>
     `;
 }
 
-async function loadCalcHistory() {
-    if (!state.user || !state.user.id) return;
-    
-    const list = document.getElementById('calcHistoryList');
-    const totalEl = document.getElementById('totalProfit');
-    
+window.requestPayment = async () => {
+    if (!state.user || !state.user.id) return showToast('Ошибка', 'error');
     try {
-        const res = await fetch(`${API_URL}/api/calc-history/${state.user.id}`);
-        const data = await res.json();
-        
-        if (!data.history || data.history.length === 0) {
-            list.innerHTML = '<p style="text-align:center; color:var(--dim); font-size:14px;">История расчетов пуста</p>';
-            totalEl.textContent = '0 ₽';
-            totalEl.style.color = 'var(--txt)';
-            return;
-        }
+        await fetch(`${API_URL}/api/payment-request`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id }) });
+        showToast('Заявка отправлена админу!', 'success');
+    } catch(e) { showToast('Ошибка', 'error'); }
+};
 
-        let total = 0;
-        list.innerHTML = data.history.map(item => {
-            const p = parseFloat(item.profit) || 0;
-            total += p;
-            const isPos = p >= 0;
-            return `
-                <div class="stat-item">
-                    <div>
-                        <div style="font-weight: 700; color: #fff;">${item.amount} ₽</div>
-                        <div class="info">Куп: ${item.buy_rate} / Прод: ${item.sell_rate}</div>
-                    </div>
-                    <div class="profit ${isPos ? 'positive' : 'negative'}">
-                        ${isPos ? '+' : ''}${p.toFixed(2)} ₽
-                    </div>
-                </div>
-            `;
-        }).join('');
+// === ФИНАНСЫ ===
+window.openTransModal = () => document.getElementById('transModal').classList.add('active');
+window.openReqModal = () => document.getElementById('reqModal').classList.add('active');
 
-        totalEl.textContent = `${total >= 0 ? '+' : ''}${total.toFixed(2)} ₽`;
-        totalEl.style.color = total >= 0 ? 'var(--grn)' : 'var(--red)';
-    } catch(e) { console.error(e); }
+window.saveTransaction = async () => {
+    const type = document.getElementById('transType').value;
+    const amount = parseFloat(document.getElementById('transAmount').value);
+    const desc = document.getElementById('transDesc').value;
+    if (!amount || !desc) return showToast('Заполните все поля', 'error');
+
+    await fetch(`${API_URL}/api/transactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, type, amount, description: desc }) });
+    closeModal('transModal'); showToast('Операция добавлена', 'success'); loadTransactions();
+};
+
+window.saveRequisite = async () => {
+    const bank = document.getElementById('reqBank').value;
+    const card = document.getElementById('reqCard').value;
+    if (!bank || !card) return showToast('Заполните все поля', 'error');
+
+    await fetch(`${API_URL}/api/requisites`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, bank_name: bank, card_number: card }) });
+    closeModal('reqModal'); showToast('Реквизиты добавлены', 'success'); loadRequisites();
+};
+
+async function loadTransactions() {
+    const list = document.getElementById('transactionsList');
+    const res = await fetch(`${API_URL}/api/transactions/${state.user.id}`);
+    const data = await res.json();
+    let inc = 0, exp = 0;
+
+    list.innerHTML = data.items.length ? data.items.map(t => {
+        const isInc = t.type === 'income';
+        if (isInc) inc += parseFloat(t.amount); else exp += parseFloat(t.amount);
+        return `<div class="stat-item">
+            <div><div style="font-weight:800;">${t.description}</div><div class="info">${new Date(t.created_at).toLocaleDateString()}</div></div>
+            <div class="profit ${isInc ? 'positive' : 'negative'}">${isInc ? '+' : '-'}${t.amount} ₽</div>
+        </div>`;
+    }).join('') : '<p style="color:var(--dim); font-size:14px;">Нет операций</p>';
+
+    document.getElementById('totalIncome').textContent = `+${inc} ₽`;
+    document.getElementById('totalExpense').textContent = `-${exp} ₽`;
+    document.getElementById('netProfit').textContent = `${inc - exp} ₽`;
+    document.getElementById('netProfit').style.color = (inc - exp) >= 0 ? 'var(--grn)' : 'var(--red)';
+}
+
+async function loadRequisites() {
+    const list = document.getElementById('requisitesList');
+    const res = await fetch(`${API_URL}/api/requisites/${state.user.id}`);
+    const data = await res.json();
+    list.innerHTML = data.items.length ? data.items.map(r => `
+        <div class="stat-item">
+            <div><div style="font-weight:800;">${r.bank_name}</div><div class="info">${r.card_number}</div></div>
+            <div style="font-size:24px; cursor:pointer;" onclick="navigator.clipboard.writeText('${r.card_number}'); showToast('Скопировано', 'success')">📋</div>
+        </div>
+    `).join('') : '<p style="color:var(--dim); font-size:14px;">Нет реквизитов</p>';
 }
 
 // === АДМИНКА ===
 async function loadAdminPayments() {
     const container = document.getElementById('adminPaymentsList');
-    if (!container) return;
-    
     try {
         const res = await fetch(`${API_URL}/api/admin/payments`);
-        if (!res.ok) throw new Error('Network error');
-        
         const data = await res.json();
-        
-        if(!data.requests || data.requests.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:var(--dim); padding: 20px;">Нет новых заявок</p>';
-            return;
-        }
-
+        if(!data.requests || data.requests.length === 0) { container.innerHTML = '<p style="text-align:center; color:var(--dim);">Нет заявок</p>'; return; }
         container.innerHTML = data.requests.map(r => `
             <div class="article-item" style="flex-direction: column; align-items: flex-start;">
                 <h4>@${r.username} (${r.display_name})</h4>
-                <div class="date" style="margin-bottom: 12px;">${new Date(r.created_at).toLocaleString('ru-RU')}</div>
-                <button class="btn btn-primary" onclick="approvePayment(${r.id}, ${r.user_id})" style="padding: 10px;">Подтвердить</button>
+                <div class="date" style="margin-bottom: 12px;">${new Date(r.created_at).toLocaleString()}</div>
+                <button class="btn btn-primary" onclick="approvePayment(${r.id}, ${r.user_id})" style="padding: 10px;">Одобрить</button>
             </div>
         `).join('');
-    } catch(e) { 
-        container.innerHTML = '<p style="text-align:center; color:var(--red); padding: 20px;">Ошибка загрузки</p>'; 
-    }
+    } catch(e) { container.innerHTML = '<p style="text-align:center; color:var(--red);">Ошибка</p>'; }
 }
 
 window.approvePayment = async (requestId, userId) => {
-    try {
-        const res = await fetch(`${API_URL}/api/admin/approve-payment`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ requestId, userId })
-        });
-        if (res.ok) {
-            showToast('Оплата подтверждена!', 'success');
-            loadAdminPayments();
-        } else {
-            showToast('Ошибка при подтверждении', 'error');
-        }
-    } catch(e) { showToast('Ошибка сети', 'error'); }
+    await fetch(`${API_URL}/api/admin/approve-payment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId, userId }) });
+    showToast('Оплата подтверждена!', 'success'); loadAdminPayments();
 };
 
 // === УПРАВЛЕНИЕ СТАТЬЯМИ ===
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
-
 window.openArticleModal = (isEdit = false) => {
     if(isEdit && state.currentArticle) {
-        document.getElementById('modalArtTitle').textContent = 'Редактировать статью';
+        document.getElementById('modalArtTitle').textContent = 'Редактировать';
         document.getElementById('editTitle').value = state.currentArticle.title;
         document.getElementById('editImage').value = state.currentArticle.image_url || '';
         document.getElementById('editContent').value = state.currentArticle.content;
+        document.getElementById('deleteArtBtn').style.display = 'block';
     } else {
         state.currentArticle = null;
         document.getElementById('modalArtTitle').textContent = 'Новая статья';
-        document.getElementById('editTitle').value = '';
-        document.getElementById('editImage').value = '';
-        document.getElementById('editContent').value = '';
+        document.getElementById('editTitle').value = ''; document.getElementById('editImage').value = ''; document.getElementById('editContent').value = '';
+        document.getElementById('deleteArtBtn').style.display = 'none';
     }
     document.getElementById('articleModal').classList.add('active');
 };
@@ -360,54 +330,28 @@ window.openArticleModal = (isEdit = false) => {
 window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 
 window.saveCategory = async () => {
-    const name = document.getElementById('newCatName').value;
-    const icon = document.getElementById('newCatIcon').value || '📄';
+    const name = document.getElementById('newCatName').value; const icon = document.getElementById('newCatIcon').value || '📄';
     if(!name) return showToast('Введите название', 'error');
-    
-    const res = await fetch(`${API_URL}/api/categories`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, icon })
-    });
-    
-    if(res.ok) {
-        closeModal('catModal');
-        showToast('Категория создана!', 'success');
-        loadData(); 
-    } else {
-        showToast('Такая категория уже есть', 'error');
-    }
+    const res = await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
+    if(res.ok) { closeModal('catModal'); showToast('Категория создана', 'success'); loadData(); } else { showToast('Ошибка', 'error'); }
 };
 
 window.saveArticle = async () => {
-    const title = document.getElementById('editTitle').value;
-    const content = document.getElementById('editContent').value;
-    const image_url = document.getElementById('editImage').value;
-    if(!title || !content) return showToast('Заполните заголовок и текст', 'error');
-
+    const title = document.getElementById('editTitle').value; const content = document.getElementById('editContent').value; const image_url = document.getElementById('editImage').value;
+    if(!title || !content) return showToast('Заполните поля', 'error');
     const isEdit = !!state.currentArticle;
     const url = isEdit ? `${API_URL}/api/articles/${state.currentArticle.id}` : `${API_URL}/api/articles`;
-    
-    const payload = { title, content, image_url };
-    if (!isEdit) payload.category = state.currentCategory;
+    const payload = { title, content, image_url }; if (!isEdit) payload.category = state.currentCategory;
 
-    try {
-        const res = await fetch(url, {
-            method: isEdit ? 'PUT' : 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
-        if (res.ok) {
-            closeModal('articleModal');
-            showToast(isEdit ? 'Статья обновлена!' : 'Статья создана!', 'success');
-            await loadData(); 
-            
-            if(isEdit) openArticle(state.currentArticle.id);
-            else openCategory(state.currentCategory);
-        } else {
-            showToast('Ошибка при сохранении', 'error');
-        }
-    } catch(e) {
-        showToast('Ошибка сети', 'error');
-    }
+    const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (res.ok) {
+        closeModal('articleModal'); showToast(isEdit ? 'Обновлено!' : 'Создано!', 'success'); await loadData();
+        if(isEdit) openArticle(state.currentArticle.id); else openCategory(state.currentCategory);
+    } else { showToast('Ошибка', 'error'); }
+};
+
+window.deleteArticle = async () => {
+    if (!confirm('Точно удалить статью?')) return;
+    await fetch(`${API_URL}/api/articles/${state.currentArticle.id}`, { method: 'DELETE' });
+    closeModal('articleModal'); showToast('Удалено', 'success'); await loadData(); openCategory(state.currentCategory);
 };
