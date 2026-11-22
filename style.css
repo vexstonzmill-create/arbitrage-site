@@ -16,7 +16,9 @@
 
 body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overflow-x: hidden; padding-bottom: 110px; }
 
-#loader { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+/* Экран загрузки и его скрытие */
+#loader { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; transition: 0.3s ease; }
+#loader.hidden { display: none; }
 .spinner { width: 40px; height: 40px; border: 4px solid var(--card-border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -94,7 +96,7 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 .fin-card.red strong { color: var(--red); }
 .fin-card.blue strong { color: #3b82f6; }
 
-/* Нижнее меню (как на референсе) */
+/* Нижнее меню */
 .floating-nav { 
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); 
   display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; 
@@ -108,7 +110,6 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 .nav-item span { font-size: 10px; font-weight: 700; }
 .nav-item.active { color: var(--primary); }
 
-/* Центральная кнопка */
 .nav-center-btn { width: 56px; height: 56px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.3); flex-shrink: 0; margin: 0 10px; transition: 0.2s; }
 .nav-center-btn:active { transform: scale(0.9); }
 .nav-center-btn svg { width: 28px; height: 28px; }

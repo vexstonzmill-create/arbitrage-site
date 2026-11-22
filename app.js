@@ -4,6 +4,7 @@ let tg = window.Telegram?.WebApp;
 
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
+    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
@@ -13,9 +14,19 @@ function showToast(message, type = 'info') {
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (tg) { tg.ready(); tg.expand(); }
-    setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
-    await authUser();
-    await loadData();
+    
+    // Принудительно убираем лоадер через 1 сек, что бы ни случилось
+    setTimeout(() => {
+        const loader = document.getElementById('loader');
+        if (loader) loader.classList.add('hidden');
+    }, 800);
+
+    try {
+        await authUser();
+        await loadData();
+    } catch(e) {
+        console.error('Init error:', e);
+    }
 });
 
 async function authUser() {
@@ -56,9 +67,12 @@ function updateUIForUser() {
     }
     const isAdmin = state.user.role === 'admin' || state.user.id === 6938068102;
     if (isAdmin) {
-        document.getElementById('adminAddCatBtn').style.display = 'flex';
-        document.getElementById('navAdminBtn').style.display = 'flex';
-        document.getElementById('adminAddArtBtn').style.display = 'flex';
+        const btnCat = document.getElementById('adminAddCatBtn');
+        const btnArt = document.getElementById('adminAddArtBtn');
+        const btnAdmin = document.getElementById('navAdminBtn');
+        if (btnCat) btnCat.style.display = 'flex';
+        if (btnArt) btnArt.style.display = 'flex';
+        if (btnAdmin) btnAdmin.style.display = 'flex';
     }
 }
 
@@ -69,11 +83,12 @@ async function loadData() {
         state.categories = data.categories || [];
         state.articles = data.articles || [];
         renderCategories();
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error('Data error', e); }
 }
 
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
+    if (!grid) return;
     grid.innerHTML = state.categories.map(cat => {
         const count = state.articles.filter(a => a.category === cat.name).length;
         return `
@@ -106,12 +121,10 @@ window.openCategory = (catName) => {
 };
 
 window.openArticle = (id) => {
-    // ПРОВЕРКА ПОДПИСКИ
     if (!state.user.is_paid && state.user.role !== 'admin') {
         document.getElementById('paywallModal').classList.add('active');
         return;
     }
-
     const art = state.articles.find(a => a.id === id);
     if (!art) return;
     state.currentArticle = art;
@@ -193,10 +206,8 @@ window.show = async (screenId) => {
 };
 
 window.openExchange = () => { showToast('Биржа в разработке, ожидается! 🛠', 'info'); };
-
-// Центральная кнопка
 window.openQuickAction = () => {
-    if (!state.user.is_paid) return showToast('Купите доступ для использования', 'error');
+    if (!state.user.is_paid) return showToast('Купите доступ', 'error');
     const isAdmin = state.user.role === 'admin';
     if (isAdmin) { openArticleModal(); } else { openTransModal(); }
 };
@@ -208,7 +219,7 @@ async function renderProfile() {
     const displayName = state.user.display_name || state.user.displayName || 'Пользователь';
 
     container.innerHTML = `
-        <div class="card" style="text-align:center; padding: 24px; background:#fff; border-radius:24px; box-shadow: var(--shadow);">
+        <div class="card" style="text-align:center; padding: 24px; background:#fff; border-radius:24px; box-shadow: var(--shadow); border: 1px solid var(--card-border);">
             <div class="avatar" style="width:70px; height:70px; font-size:28px; margin: 0 auto 16px; background:#f0f0f0; color:#000;">
                 ${state.user.avatar_url || state.user.avatarUrl ? `<img src="${state.user.avatar_url || state.user.avatarUrl}">` : displayName[0].toUpperCase()}
             </div>
@@ -231,27 +242,21 @@ window.requestPayment = async () => {
     } catch(e) { showToast('Ошибка', 'error'); }
 };
 
-// === ФИНАНСЫ ===
 window.openTransModal = () => document.getElementById('transModal').classList.add('active');
 window.openReqModal = () => document.getElementById('reqModal').classList.add('active');
 
 window.saveTransaction = async () => {
-    const type = document.getElementById('transType').value;
-    const amount = parseFloat(document.getElementById('transAmount').value);
-    const desc = document.getElementById('transDesc').value;
-    if (!amount || !desc) return showToast('Заполните все поля', 'error');
-
+    const type = document.getElementById('transType').value; const amount = parseFloat(document.getElementById('transAmount').value); const desc = document.getElementById('transDesc').value;
+    if (!amount || !desc) return showToast('Заполните поля', 'error');
     await fetch(`${API_URL}/api/transactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, type, amount, description: desc }) });
-    closeModal('transModal'); showToast('Операция добавлена', 'success'); loadTransactions();
+    closeModal('transModal'); showToast('Добавлено', 'success'); loadTransactions();
 };
 
 window.saveRequisite = async () => {
-    const bank = document.getElementById('reqBank').value;
-    const card = document.getElementById('reqCard').value;
-    if (!bank || !card) return showToast('Заполните все поля', 'error');
-
+    const bank = document.getElementById('reqBank').value; const card = document.getElementById('reqCard').value;
+    if (!bank || !card) return showToast('Заполните поля', 'error');
     await fetch(`${API_URL}/api/requisites`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, bank_name: bank, card_number: card }) });
-    closeModal('reqModal'); showToast('Реквизиты добавлены', 'success'); loadRequisites();
+    closeModal('reqModal'); showToast('Добавлено', 'success'); loadRequisites();
 };
 
 async function loadTransactions() {
@@ -287,7 +292,6 @@ async function loadRequisites() {
     `).join('') : '<p style="color:var(--dim); font-size:14px;">Нет реквизитов</p>';
 }
 
-// === АДМИНКА ===
 async function loadAdminPayments() {
     const container = document.getElementById('adminPaymentsList');
     try {
@@ -309,7 +313,6 @@ window.approvePayment = async (requestId, userId) => {
     showToast('Оплата подтверждена!', 'success'); loadAdminPayments();
 };
 
-// === УПРАВЛЕНИЕ СТАТЬЯМИ ===
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
 window.openArticleModal = (isEdit = false) => {
     if(isEdit && state.currentArticle) {
