@@ -1,10 +1,9 @@
 const API_URL = window.location.origin;
 let state = { user: null, categories: [], articles: [], currentCategory: null, currentArticle: null };
-let tg = window.Telegram?.WebApp;
+let currentReqId = null; // Для отправки реквизитов
 
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
-    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
@@ -12,349 +11,337 @@ function showToast(message, type = 'info') {
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    if (tg) { tg.ready(); tg.expand(); }
-    
-    // Принудительно убираем лоадер через 1 сек, что бы ни случилось
-    setTimeout(() => {
-        const loader = document.getElementById('loader');
-        if (loader) loader.classList.add('hidden');
-    }, 800);
+// КАСТОМНЫЙ CONFIRM
+function showConfirm(title, text, onConfirm) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmText').textContent = text;
+    document.getElementById('confirmYesBtn').onclick = () => {
+        closeModal('confirmModal');
+        onConfirm();
+    };
+    document.getElementById('confirmModal').classList.add('active');
+}
 
-    try {
-        await authUser();
-        await loadData();
-    } catch(e) {
-        console.error('Init error:', e);
-    }
+document.addEventListener('DOMContentLoaded', async () => {
+    if (window.Telegram?.WebApp) { window.Telegram.WebApp.ready(); window.Telegram.WebApp.expand(); }
+    setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
+    await authUser();
+    await loadData();
 });
 
 async function authUser() {
-    if (!tg || !tg.initData) {
-        state.user = { id: 6938068102, display_name: 'Админ (Браузер)', role: 'admin', avatar_url: null, is_paid: true };
-        updateUIForUser();
-        return;
+    if (!window.Telegram || !window.Telegram.WebApp.initData) {
+        state.user = { id: 6938068102, display_name: 'Админ (Браузер)', role: 'admin', is_paid: true };
+        updateUIForUser(); return;
     }
     try {
         const res = await fetch(`${API_URL}/api/auth/telegram`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: tg.initData })
+            body: JSON.stringify({ initData: window.Telegram.WebApp.initData })
         });
         if (res.ok) {
             const data = await res.json();
             state.user = data.user;
             updateUIForUser();
         } else {
+            const err = await res.json();
+            showToast(err.error || 'Ошибка входа', 'error');
             fallbackUser();
         }
     } catch(e) { fallbackUser(); }
 }
 
-function fallbackUser() {
-    state.user = { display_name: 'Гость', username: 'guest', role: 'user', avatar_url: null, is_paid: false };
-    updateUIForUser();
-}
+function fallbackUser() { state.user = { display_name: 'Гость', role: 'user', is_paid: false }; updateUIForUser(); }
 
 function updateUIForUser() {
     if (!state.user) return;
-    const av = document.getElementById('userAvatar');
-    if (av) {
-        if (state.user.avatar_url || state.user.avatarUrl) {
-            av.innerHTML = `<img src="${state.user.avatar_url || state.user.avatarUrl}">`;
-        } else {
-            av.textContent = (state.user.display_name || state.user.displayName || 'U')[0].toUpperCase();
-        }
-    }
-    const isAdmin = state.user.role === 'admin' || state.user.id === 6938068102;
+    document.getElementById('userAvatar').textContent = (state.user.display_name || 'U')[0].toUpperCase();
+    const isAdmin = state.user.role === 'admin';
     if (isAdmin) {
-        const btnCat = document.getElementById('adminAddCatBtn');
-        const btnArt = document.getElementById('adminAddArtBtn');
-        const btnAdmin = document.getElementById('navAdminBtn');
-        if (btnCat) btnCat.style.display = 'flex';
-        if (btnArt) btnArt.style.display = 'flex';
-        if (btnAdmin) btnAdmin.style.display = 'flex';
+        document.getElementById('adminAddCatBtn').style.display = 'flex';
+        document.getElementById('navAdminBtn').style.display = 'flex';
+        document.getElementById('adminAddArtBtn').style.display = 'flex';
+    }
+    if (state.user.is_paid) {
+        document.getElementById('userActions').style.display = 'flex';
     }
 }
 
 async function loadData() {
-    try {
-        const res = await fetch(`${API_URL}/api/data`);
-        const data = await res.json();
-        state.categories = data.categories || [];
-        state.articles = data.articles || [];
-        renderCategories();
-    } catch(e) { console.error('Data error', e); }
+    const res = await fetch(`${API_URL}/api/data`);
+    const data = await res.json();
+    state.categories = data.categories || [];
+    state.articles = data.articles || [];
+    renderCategories();
+    
+    // Заполняем селект категорий для отправки статьи
+    const subCat = document.getElementById('subCat');
+    if (subCat) subCat.innerHTML = state.categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
 }
 
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
-    if (!grid) return;
     grid.innerHTML = state.categories.map(cat => {
         const count = state.articles.filter(a => a.category === cat.name).length;
-        return `
-        <div class="cat-card" onclick="openCategory('${cat.name}')">
-            <div class="icon">${cat.icon}</div>
-            <div>
-                <h4>${cat.name}</h4>
-                <span>${count} статей</span>
-            </div>
-        </div>`;
+        return `<div class="cat-card" onclick="openCategory('${cat.name}')"><div class="icon">${cat.icon}</div><div><h4>${cat.name}</h4><span>${count} статей</span></div></div>`;
     }).join('');
 }
 
 window.openCategory = (catName) => {
-    state.currentCategory = catName;
-    state.currentArticle = null;
+    state.currentCategory = catName; state.currentArticle = null;
     document.getElementById('categoryTitle').textContent = catName;
-    const list = document.getElementById('articlesList');
     const filtered = state.articles.filter(a => a.category === catName);
-    list.innerHTML = filtered.length ? filtered.map(art => `
+    document.getElementById('articlesList').innerHTML = filtered.length ? filtered.map(art => `
         <div class="article-item" onclick="openArticle(${art.id})">
-            <div>
-                <h4>${art.title}</h4>
-                <div class="date">Обновлено: ${new Date(art.updated_at).toLocaleDateString('ru-RU')}</div>
-            </div>
-            <div class="arrow">›</div>
-        </div>
-    `).join('') : '<p style="text-align:center; color:var(--dim);">Здесь пока пусто...</p>';
+            <div><h4>${art.title}</h4><div class="date">Обновлено: ${new Date(art.updated_at).toLocaleDateString()}</div></div><div class="arrow">›</div>
+        </div>`).join('') : '<p style="text-align:center; color:var(--dim);">Здесь пока пусто...</p>';
     show('category');
 };
 
 window.openArticle = (id) => {
     if (!state.user.is_paid && state.user.role !== 'admin') {
-        document.getElementById('paywallModal').classList.add('active');
+        checkPaymentStatus(); // Проверяем, может реквизиты уже присланы
         return;
     }
     const art = state.articles.find(a => a.id === id);
-    if (!art) return;
     state.currentArticle = art;
-
     document.getElementById('articleTitle').textContent = art.title;
-    document.getElementById('articleDate').textContent = `Обновлено: ${new Date(art.updated_at).toLocaleString('ru-RU')}`;
+    document.getElementById('articleDate').textContent = `Обновлено: ${new Date(art.updated_at).toLocaleString()}`;
     document.getElementById('articleText').textContent = art.content;
-    
-    const img = document.getElementById('articleImage');
-    if (art.image_url) { img.src = art.image_url; img.style.display = 'block'; } else { img.style.display = 'none'; }
-
-    const isAdmin = state.user?.role === 'admin' || state.user?.id === 6938068102;
+    if (art.image_url) { document.getElementById('articleImage').src = art.image_url; document.getElementById('articleImage').style.display = 'block'; } 
+    else { document.getElementById('articleImage').style.display = 'none'; }
+    const isAdmin = state.user?.role === 'admin';
     document.getElementById('adminEditArtBtn').style.display = isAdmin ? 'flex' : 'none';
     show('article');
 };
 
 window.backToCategory = () => openCategory(state.currentCategory);
 
-// === КАЛЬКУЛЯТОР ===
+// === ОПЛАТА ===
+async function checkPaymentStatus() {
+    if (!state.user || !state.user.id) { document.getElementById('paywallModal').classList.add('active'); return; }
+    const res = await fetch(`${API_URL}/api/user/payment-status/${state.user.id}`);
+    const data = await res.json();
+    const content = document.getElementById('paywallContent');
+
+    if (data.request && data.request.status === 'requisites_sent') {
+        content.innerHTML = `
+            <p style="font-size:14px; margin-bottom:10px; font-weight:700;">Реквизиты для оплаты:</p>
+            <div style="background:var(--bg); padding:12px; border-radius:12px; font-weight:800; font-size:16px; margin-bottom:16px; border:1px dashed var(--primary);">
+                ${data.request.requisites}
+            </div>
+            <button class="btn btn-primary" onclick="userPaid(${data.request.id})">Я оплатил</button>
+        `;
+    } else if (data.request && data.request.status === 'paid') {
+        content.innerHTML = `<p style="color:var(--grn); font-weight:800;">Ожидайте подтверждения от админа!</p>`;
+    } else {
+        content.innerHTML = `
+            <p style="color: var(--dim); font-size: 14px; margin-bottom: 20px;">Чтобы читать статьи, необходимо приобрести доступ.</p>
+            <button class="btn btn-primary" onclick="requestPayment()">Купить за 30$</button>
+        `;
+    }
+    document.getElementById('paywallModal').classList.add('active');
+}
+
+window.requestPayment = async () => {
+    await fetch(`${API_URL}/api/payment-request`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id }) });
+    showToast('Заявка отправлена админу!', 'success');
+    closeModal('paywallModal');
+};
+
+window.userPaid = async (reqId) => {
+    await fetch(`${API_URL}/api/user/payment-paid/${reqId}`, { method: 'POST' });
+    showToast('Админ получил уведомление об оплате!', 'success');
+    closeModal('paywallModal');
+};
+
+// === КАЛЬКУЛЯТОР (сокращенно) ===
 window.calcP2P = () => {
     const buy = parseFloat(document.getElementById('calcBuy').value) || 0;
     const sell = parseFloat(document.getElementById('calcSell').value) || 0;
     const amount = parseFloat(document.getElementById('calcAmount').value) || 0;
-    const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0;
-    const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
-
-    const resSpread = document.getElementById('resSpread');
-    const resProfit = document.getElementById('resProfit');
-
-    if(!buy || !sell || !amount) {
-        resSpread.textContent = '0 ₽ (0%)'; resProfit.textContent = '0 ₽'; resProfit.style.color = 'var(--grn)'; return;
-    }
-    const usdtGross = amount / buy; const usdtNet = usdtGross * (1 - (buyFee / 100));
-    const rubGross = usdtNet * sell; const rubNet = rubGross * (1 - (sellFee / 100));
-    const profit = rubNet - amount; const spreadPct = ((sell - buy) / buy) * 100;
-
-    resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
-    resProfit.textContent = `${profit.toFixed(2)} ₽`;
-    resProfit.style.color = profit >= 0 ? 'var(--grn)' : 'var(--red)';
+    if(!buy || !sell || !amount) return;
+    const spread = sell - buy; const profit = (amount / buy) * spread;
+    document.getElementById('resSpread').textContent = `${spread.toFixed(2)} ₽ (${((spread/buy)*100).toFixed(2)}%)`;
+    document.getElementById('resProfit').textContent = `${profit.toFixed(2)} ₽`;
 };
+window.resetCalc = () => { ['calcBuy','calcSell','calcAmount','calcBuyFee','calcSellFee'].forEach(id=>document.getElementById(id).value=''); calcP2P(); };
+window.saveCalc = () => showToast('Расчет сохранен в истории!', 'success');
 
-window.resetCalc = () => {
-    document.getElementById('calcBuy').value = ''; document.getElementById('calcSell').value = ''; document.getElementById('calcAmount').value = ''; document.getElementById('calcBuyFee').value = ''; document.getElementById('calcSellFee').value = ''; calcP2P();
-};
-
-window.saveCalc = async () => {
-    if (!state.user || !state.user.id) return showToast('Ошибка: нет ID', 'error');
-    const buy = parseFloat(document.getElementById('calcBuy').value); const sell = parseFloat(document.getElementById('calcSell').value); const amount = parseFloat(document.getElementById('calcAmount').value);
-    const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0; const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
-    if(!buy || !sell || !amount) return showToast('Заполните поля', 'error');
-
-    const usdtGross = amount / buy; const usdtNet = usdtGross * (1 - (buyFee / 100));
-    const rubGross = usdtNet * sell; const rubNet = rubGross * (1 - (sellFee / 100));
-    const profit = rubNet - amount;
-
-    try {
-        const res = await fetch(`${API_URL}/api/calc-save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, buy_rate: buy, sell_rate: sell, amount: amount, profit: profit }) });
-        if (res.ok) { showToast('Расчет добавлен!', 'success'); resetCalc(); } else { showToast('Ошибка', 'error'); }
-    } catch(e) { showToast('Ошибка сети', 'error'); }
-};
-
-// === НАВИГАЦИЯ И ПРОФИЛЬ ===
+// === НАВИГАЦИЯ ===
 window.show = async (screenId) => {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-' + screenId).classList.add('active');
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.querySelector(`.nav-item[data-target="${screenId}"]`)?.classList.add('active');
 
-    if (screenId === 'profile') {
-        renderProfile();
-        if (state.user && state.user.is_paid) {
-            document.getElementById('financeSection').style.display = 'block';
-            loadTransactions(); loadRequisites();
-        } else {
-            document.getElementById('financeSection').style.display = 'none';
-        }
-    }
-    if (screenId === 'admin') loadAdminPayments();
-};
-
-window.openExchange = () => { showToast('Биржа в разработке, ожидается! 🛠', 'info'); };
-window.openQuickAction = () => {
-    if (!state.user.is_paid) return showToast('Купите доступ', 'error');
-    const isAdmin = state.user.role === 'admin';
-    if (isAdmin) { openArticleModal(); } else { openTransModal(); }
+    if (screenId === 'profile') renderProfile();
+    if (screenId === 'admin') loadAdminTab('payments');
 };
 
 async function renderProfile() {
     const container = document.getElementById('profileContent');
-    if (!state.user) return;
     const isPaid = state.user.is_paid || state.user.role === 'admin';
-    const displayName = state.user.display_name || state.user.displayName || 'Пользователь';
-
+    
     container.innerHTML = `
         <div class="card" style="text-align:center; padding: 24px; background:#fff; border-radius:24px; box-shadow: var(--shadow); border: 1px solid var(--card-border);">
-            <div class="avatar" style="width:70px; height:70px; font-size:28px; margin: 0 auto 16px; background:#f0f0f0; color:#000;">
-                ${state.user.avatar_url || state.user.avatarUrl ? `<img src="${state.user.avatar_url || state.user.avatarUrl}">` : displayName[0].toUpperCase()}
-            </div>
-            <h3 style="color:#000; font-size: 20px;">${displayName}</h3>
+            <div class="avatar" style="width:70px; height:70px; font-size:28px; margin: 0 auto 16px; background:#f0f0f0; color:#000;">${state.user.display_name[0]}</div>
+            <h3 style="font-size: 20px;">${state.user.display_name}</h3>
             <p style="color:var(--dim); margin-bottom: 20px;">@${state.user.username || 'unknown'}</p>
-            
             <div style="background: ${isPaid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${isPaid ? 'var(--grn)' : 'var(--red)'}; padding: 12px; border-radius: 16px; font-weight: 800; font-size: 15px;">
                 ${isPaid ? '✅ Доступ открыт' : '🔒 Требуется подписка'}
             </div>
-            ${!isPaid ? `<button class="btn btn-primary" onclick="requestPayment()" style="margin-top:16px;">Купить доступ</button>` : ''}
+            ${!isPaid ? `<button class="btn btn-primary" onclick="checkPaymentStatus()" style="margin-top:16px;">Купить доступ</button>` : ''}
         </div>
     `;
 }
 
-window.requestPayment = async () => {
-    if (!state.user || !state.user.id) return showToast('Ошибка', 'error');
-    try {
-        await fetch(`${API_URL}/api/payment-request`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id }) });
-        showToast('Заявка отправлена админу!', 'success');
-    } catch(e) { showToast('Ошибка', 'error'); }
+window.openQuickAction = () => {
+    if (state.user.role === 'admin') { openArticleModal(); } 
+    else if (state.user.is_paid) { openSubmitArticleModal(); } 
+    else { showToast('Сначала купите доступ', 'error'); checkPaymentStatus(); }
 };
 
-window.openTransModal = () => document.getElementById('transModal').classList.add('active');
-window.openReqModal = () => document.getElementById('reqModal').classList.add('active');
-
-window.saveTransaction = async () => {
-    const type = document.getElementById('transType').value; const amount = parseFloat(document.getElementById('transAmount').value); const desc = document.getElementById('transDesc').value;
-    if (!amount || !desc) return showToast('Заполните поля', 'error');
-    await fetch(`${API_URL}/api/transactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, type, amount, description: desc }) });
-    closeModal('transModal'); showToast('Добавлено', 'success'); loadTransactions();
+// === ОТПРАВКА СТАТЬИ ЮЗЕРОМ ===
+window.openSubmitArticleModal = () => document.getElementById('submitArticleModal').classList.add('active');
+window.submitArticle = async () => {
+    const cat = document.getElementById('subCat').value; const title = document.getElementById('subTitle').value;
+    const content = document.getElementById('subContent').value; const price = parseFloat(document.getElementById('subPrice').value) || 0;
+    if(!title || !content) return showToast('Заполните поля', 'error');
+    
+    await fetch(`${API_URL}/api/articles/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, category: cat, title, content, price }) });
+    closeModal('submitArticleModal'); showToast('Статья отправлена на модерацию!', 'success');
 };
 
-window.saveRequisite = async () => {
-    const bank = document.getElementById('reqBank').value; const card = document.getElementById('reqCard').value;
-    if (!bank || !card) return showToast('Заполните поля', 'error');
-    await fetch(`${API_URL}/api/requisites`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, bank_name: bank, card_number: card }) });
-    closeModal('reqModal'); showToast('Добавлено', 'success'); loadRequisites();
+// === АДМИН ПАНЕЛЬ ===
+window.switchAdminTab = (tab) => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('adminTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+    loadAdminTab(tab);
 };
 
-async function loadTransactions() {
-    const list = document.getElementById('transactionsList');
-    const res = await fetch(`${API_URL}/api/transactions/${state.user.id}`);
-    const data = await res.json();
-    let inc = 0, exp = 0;
-
-    list.innerHTML = data.items.length ? data.items.map(t => {
-        const isInc = t.type === 'income';
-        if (isInc) inc += parseFloat(t.amount); else exp += parseFloat(t.amount);
-        return `<div class="stat-item">
-            <div><div style="font-weight:800;">${t.description}</div><div class="info">${new Date(t.created_at).toLocaleDateString()}</div></div>
-            <div class="profit ${isInc ? 'positive' : 'negative'}">${isInc ? '+' : '-'}${t.amount} ₽</div>
-        </div>`;
-    }).join('') : '<p style="color:var(--dim); font-size:14px;">Нет операций</p>';
-
-    document.getElementById('totalIncome').textContent = `+${inc} ₽`;
-    document.getElementById('totalExpense').textContent = `-${exp} ₽`;
-    document.getElementById('netProfit').textContent = `${inc - exp} ₽`;
-    document.getElementById('netProfit').style.color = (inc - exp) >= 0 ? 'var(--grn)' : 'var(--red)';
-}
-
-async function loadRequisites() {
-    const list = document.getElementById('requisitesList');
-    const res = await fetch(`${API_URL}/api/requisites/${state.user.id}`);
-    const data = await res.json();
-    list.innerHTML = data.items.length ? data.items.map(r => `
-        <div class="stat-item">
-            <div><div style="font-weight:800;">${r.bank_name}</div><div class="info">${r.card_number}</div></div>
-            <div style="font-size:24px; cursor:pointer;" onclick="navigator.clipboard.writeText('${r.card_number}'); showToast('Скопировано', 'success')">📋</div>
-        </div>
-    `).join('') : '<p style="color:var(--dim); font-size:14px;">Нет реквизитов</p>';
-}
-
-async function loadAdminPayments() {
-    const container = document.getElementById('adminPaymentsList');
-    try {
-        const res = await fetch(`${API_URL}/api/admin/payments`);
-        const data = await res.json();
-        if(!data.requests || data.requests.length === 0) { container.innerHTML = '<p style="text-align:center; color:var(--dim);">Нет заявок</p>'; return; }
-        container.innerHTML = data.requests.map(r => `
-            <div class="article-item" style="flex-direction: column; align-items: flex-start;">
-                <h4>@${r.username} (${r.display_name})</h4>
-                <div class="date" style="margin-bottom: 12px;">${new Date(r.created_at).toLocaleString()}</div>
-                <button class="btn btn-primary" onclick="approvePayment(${r.id}, ${r.user_id})" style="padding: 10px;">Одобрить</button>
+async function loadAdminTab(tab) {
+    if (tab === 'payments') {
+        const res = await fetch(`${API_URL}/api/admin/payments`); const data = await res.json();
+        document.getElementById('adminPaymentsList').innerHTML = data.requests.length ? data.requests.map(r => `
+            <div class="stat-item" style="flex-direction:column; align-items:flex-start;">
+                <div style="font-weight:800;">@${r.username} (${r.display_name})</div>
+                <div style="font-size:12px; color:var(--dim); margin-bottom:10px;">Статус: <b>${r.status}</b></div>
+                ${r.status === 'pending' ? `<button class="btn btn-primary" onclick="promptRequisites(${r.id})" style="padding:10px; font-size:14px;">Ввести реквизиты</button>` : ''}
+                ${r.status === 'paid' ? `<button class="btn btn-primary" onclick="approvePayment(${r.id}, ${r.user_id})" style="padding:10px; font-size:14px; background:var(--grn);">Подтвердить оплату</button>` : ''}
+            </div>
+        `).join('') : '<p>Нет заявок</p>';
+    }
+    if (tab === 'users') {
+        const res = await fetch(`${API_URL}/api/admin/users`); const data = await res.json();
+        document.getElementById('adminUsersList').innerHTML = data.users.map(u => `
+            <div class="stat-item" style="flex-wrap:wrap; gap:10px;">
+                <div>
+                    <div style="font-weight:800;">${u.display_name}</div>
+                    <div style="font-size:12px; color:var(--dim);">@${u.username} | ${u.role}</div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn ${u.is_paid ? 'btn-danger' : 'btn-primary'}" style="padding:8px; font-size:12px; width:auto;" onclick="togglePaid(${u.id}, ${!u.is_paid})">${u.is_paid ? 'Забрать доступ' : 'Выдать доступ'}</button>
+                    <button class="btn btn-ghost" style="padding:8px; font-size:12px; width:auto;" onclick="toggleBlock(${u.id}, ${!u.is_blocked})">${u.is_blocked ? 'Разблок.' : 'Блок'}</button>
+                </div>
             </div>
         `).join('');
-    } catch(e) { container.innerHTML = '<p style="text-align:center; color:var(--red);">Ошибка</p>'; }
+    }
+    if (tab === 'moderation') {
+        const res = await fetch(`${API_URL}/api/admin/moderation`); const data = await res.json();
+        document.getElementById('adminModerationList').innerHTML = data.articles.length ? data.articles.map(a => `
+            <div class="stat-item" style="flex-direction:column; align-items:flex-start;">
+                <div style="font-weight:800;">${a.title} <span style="color:var(--primary); font-size:12px;">[${a.category}]</span></div>
+                <div style="font-size:12px; color:var(--dim); margin-bottom:10px;">Автор: ${a.author_name} | Цена: ${a.price} ₽</div>
+                <div style="display:flex; gap:10px; width:100%;">
+                    <button class="btn btn-primary" style="padding:8px; font-size:12px; flex:1;" onclick="moderateArticle(${a.id}, 'approve')">Одобрить</button>
+                    <button class="btn btn-danger" style="padding:8px; font-size:12px; flex:1;" onclick="moderateArticle(${a.id}, 'reject')">Отклонить</button>
+                </div>
+            </div>
+        `).join('') : '<p>Нет статей на модерации</p>';
+    }
 }
 
-window.approvePayment = async (requestId, userId) => {
-    await fetch(`${API_URL}/api/admin/approve-payment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId, userId }) });
-    showToast('Оплата подтверждена!', 'success'); loadAdminPayments();
+window.promptRequisites = (reqId) => {
+    currentReqId = reqId;
+    document.getElementById('reqText').value = '';
+    document.getElementById('reqModal').classList.add('active');
 };
 
+window.sendRequisites = async () => {
+    const text = document.getElementById('reqText').value;
+    if (!text) return showToast('Введите реквизиты', 'error');
+    await fetch(`${API_URL}/api/admin/send-requisites`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: currentReqId, requisites: text }) });
+    closeModal('reqModal'); showToast('Реквизиты отправлены юзеру', 'success'); loadAdminTab('payments');
+};
+
+window.approvePayment = (reqId, userId) => {
+    showConfirm('Подтвердить оплату?', 'Доступ будет выдан пользователю.', async () => {
+        await fetch(`${API_URL}/api/admin/approve-payment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: reqId, userId }) });
+        showToast('Оплата подтверждена!', 'success'); loadAdminTab('payments');
+    });
+};
+
+window.togglePaid = (userId, isPaid) => {
+    showConfirm('Изменить доступ?', `Вы собираетесь ${isPaid ? 'выдать' : 'забрать'} доступ.`, async () => {
+        await fetch(`${API_URL}/api/admin/users/toggle-paid`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, isPaid }) });
+        loadAdminTab('users');
+    });
+};
+
+window.toggleBlock = (userId, isBlocked) => {
+    showConfirm('Блокировка', `Вы хотите ${isBlocked ? 'заблокировать' : 'разблокировать'} юзера?`, async () => {
+        await fetch(`${API_URL}/api/admin/users/toggle-block`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, isBlocked }) });
+        loadAdminTab('users');
+    });
+};
+
+window.moderateArticle = (articleId, action) => {
+    showConfirm('Модерация', action === 'approve' ? 'Опубликовать статью?' : 'Удалить статью?', async () => {
+        await fetch(`${API_URL}/api/admin/moderate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ articleId, action }) });
+        showToast(action === 'approve' ? 'Опубликовано!' : 'Отклонено', 'success'); loadAdminTab('moderation');
+    });
+};
+
+// === БАЗОВЫЕ ФУНКЦИИ СТАТЕЙ АДМИНА (сокращенно) ===
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
+window.saveCategory = async () => {
+    const name = document.getElementById('newCatName').value;
+    if(!name) return;
+    await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon: '📄' }) });
+    closeModal('catModal'); loadData();
+};
+
 window.openArticleModal = (isEdit = false) => {
     if(isEdit && state.currentArticle) {
-        document.getElementById('modalArtTitle').textContent = 'Редактировать';
         document.getElementById('editTitle').value = state.currentArticle.title;
-        document.getElementById('editImage').value = state.currentArticle.image_url || '';
         document.getElementById('editContent').value = state.currentArticle.content;
         document.getElementById('deleteArtBtn').style.display = 'block';
     } else {
         state.currentArticle = null;
-        document.getElementById('modalArtTitle').textContent = 'Новая статья';
-        document.getElementById('editTitle').value = ''; document.getElementById('editImage').value = ''; document.getElementById('editContent').value = '';
+        document.getElementById('editTitle').value = '';
+        document.getElementById('editContent').value = '';
         document.getElementById('deleteArtBtn').style.display = 'none';
     }
     document.getElementById('articleModal').classList.add('active');
 };
 
-window.closeModal = (id) => document.getElementById(id).classList.remove('active');
-
-window.saveCategory = async () => {
-    const name = document.getElementById('newCatName').value; const icon = document.getElementById('newCatIcon').value || '📄';
-    if(!name) return showToast('Введите название', 'error');
-    const res = await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
-    if(res.ok) { closeModal('catModal'); showToast('Категория создана', 'success'); loadData(); } else { showToast('Ошибка', 'error'); }
-};
-
 window.saveArticle = async () => {
-    const title = document.getElementById('editTitle').value; const content = document.getElementById('editContent').value; const image_url = document.getElementById('editImage').value;
-    if(!title || !content) return showToast('Заполните поля', 'error');
+    const title = document.getElementById('editTitle').value; const content = document.getElementById('editContent').value;
+    if(!title || !content) return;
     const isEdit = !!state.currentArticle;
     const url = isEdit ? `${API_URL}/api/articles/${state.currentArticle.id}` : `${API_URL}/api/articles`;
-    const payload = { title, content, image_url }; if (!isEdit) payload.category = state.currentCategory;
-
-    const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (res.ok) {
-        closeModal('articleModal'); showToast(isEdit ? 'Обновлено!' : 'Создано!', 'success'); await loadData();
-        if(isEdit) openArticle(state.currentArticle.id); else openCategory(state.currentCategory);
-    } else { showToast('Ошибка', 'error'); }
+    await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, content, category: state.currentCategory }) });
+    closeModal('articleModal'); loadData(); show('home');
 };
 
-window.deleteArticle = async () => {
-    if (!confirm('Точно удалить статью?')) return;
-    await fetch(`${API_URL}/api/articles/${state.currentArticle.id}`, { method: 'DELETE' });
-    closeModal('articleModal'); showToast('Удалено', 'success'); await loadData(); openCategory(state.currentCategory);
+window.deleteArticle = () => {
+    showConfirm('Удалить статью?', 'Действие необратимо.', async () => {
+        await fetch(`${API_URL}/api/articles/${state.currentArticle.id}`, { method: 'DELETE' });
+        closeModal('articleModal'); loadData(); backToCategory();
+    });
 };
+
+window.closeModal = (id) => document.getElementById(id).classList.remove('active');
