@@ -56,15 +56,22 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 .article-image { width: 100%; border-radius: 16px; margin-bottom: 20px; object-fit: cover; max-height: 300px; }
 .article-text { font-size: 16px; line-height: 1.6; color: #d1d5db; white-space: pre-wrap; }
 
-.dark-card { background: var(--card-bg); border: 1px solid var(--card-border); padding: 24px; border-radius: 24px; }
-.input-group { margin-bottom: 16px; }
-.input-group label { display: block; font-size: 13px; color: var(--dim); font-weight: 500; margin-bottom: 8px; margin-left: 4px; }
-.input-group input { width: 100%; padding: 16px; border-radius: 16px; border: none; background: var(--inner-card); color: var(--txt); font-size: 16px; font-weight: 600; outline: none; }
-.input-group input:focus { background: #3a3a3c; }
-.calc-result { background: var(--inner-card); padding: 20px; border-radius: 16px; margin-top: 20px; }
-.res-row { display: flex; justify-content: space-between; font-weight: 600; font-size: 15px; color: var(--dim); }
-.res-row strong { color: var(--txt); font-weight: 800; }
+/* НОВЫЙ ДИЗАЙН КАЛЬКУЛЯТОРА */
+.calc-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 28px; padding: 20px; margin-bottom: 16px; }
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.calc-input-wrap { background: var(--inner-card); border-radius: 16px; padding: 12px 16px; display: flex; flex-direction: column; transition: 0.2s; }
+.calc-input-wrap:focus-within { border: 1px solid var(--primary); background: #3a3a3c; }
+.calc-input-wrap label { font-size: 11px; color: var(--dim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.calc-input-wrap input { background: transparent; border: none; color: var(--txt); font-size: 18px; font-weight: 700; outline: none; width: 100%; }
+.calc-input-wrap input::placeholder { color: #555; }
 
+.calc-result-box { background: linear-gradient(135deg, #1c1c1e, #000000); border: 1px solid var(--card-border); border-radius: 28px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.res-row-small { display: flex; justify-content: space-between; font-size: 15px; color: var(--dim); font-weight: 600; }
+.res-row-small strong { color: #fff; }
+.res-row-big { display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: 700; }
+.res-row-big strong { font-size: 28px; font-weight: 900; }
+
+/* Нижнее меню */
 .floating-nav { 
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); 
   display: flex; align-items: center; justify-content: space-between; padding: 6px; 

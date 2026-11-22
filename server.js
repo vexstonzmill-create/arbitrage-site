@@ -31,7 +31,7 @@ async function initDB() {
     if (parseInt(checkCats.rows[0].count) === 0) {
       await pool.query(`INSERT INTO categories (name, icon, color) VALUES ('Мануалы', '🏦', 'g1'), ('Связки', '🔗', 'g2'), ('Термины', '📚', 'g3'), ('Безопасность', '🛡️', 'g4');`);
     }
-    console.log('✅ База данных и таблицы готовы');
+    console.log('✅ База данных готова');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
 }
 initDB();
@@ -50,11 +50,14 @@ function validateTelegramData(initData) {
 
 app.post('/api/auth/telegram', async (req, res) => {
   const { initData } = req.body;
-  if (!validateTelegramData(initData)) return res.status(401).json({ error: 'Invalid data' });
+  if (!validateTelegramData(initData)) return res.status(401).json({ error: 'Invalid initData' });
   
   try {
-    const tgUser = JSON.parse(new URLSearchParams(initData).get('user'));
-    if (!tgUser || !tgUser.id) return res.status(400).json({ error: 'No user data' });
+    const tgUserStr = new URLSearchParams(initData).get('user');
+    if (!tgUserStr) return res.status(400).json({ error: 'No user string' });
+    
+    const tgUser = JSON.parse(tgUserStr);
+    if (!tgUser || !tgUser.id) return res.status(400).json({ error: 'No user ID' });
 
     const isAdmin = Number(tgUser.id) === Number(CONFIG.ADMIN_TG_ID);
     const result = await pool.query(`
@@ -66,8 +69,8 @@ app.post('/api/auth/telegram', async (req, res) => {
     
     res.json({ token: 'token_' + tgUser.id, user: result.rows[0] });
   } catch (e) { 
-    console.error('Auth error:', e.message);
-    res.status(500).json({ error: 'Database error' }); 
+    console.error('Auth error:', e);
+    res.status(500).json({ error: e.message }); // Отдаем точную ошибку
   }
 });
 
@@ -82,12 +85,16 @@ app.get('/api/data', async (req, res) => {
 app.post('/api/calc-save', async (req, res) => {
   const { userId, buy_rate, sell_rate, amount, profit } = req.body;
   try {
+    if (!userId) throw new Error('No user ID provided');
     await pool.query(
       'INSERT INTO calc_history (user_id, buy_rate, sell_rate, amount, profit) VALUES ($1, $2, $3, $4, $5)',
       [userId, buy_rate, sell_rate, amount, profit]
     );
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: 'Error' }); }
+  } catch (e) { 
+    console.error('Calc error:', e.message);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 app.get('/api/calc-history/:userId', async (req, res) => {
@@ -128,7 +135,6 @@ app.post('/api/payment-request', async (req, res) => {
   try {
     const check = await pool.query('SELECT * FROM payment_requests WHERE user_id = $1 AND status = $2', [userId, 'pending']);
     if (check.rows.length > 0) return res.json({ success: true });
-    
     await pool.query('INSERT INTO payment_requests (user_id) VALUES ($1)', [userId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }

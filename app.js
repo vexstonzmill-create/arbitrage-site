@@ -41,11 +41,13 @@ async function authUser() {
             state.user = data.user;
             updateUIForUser();
         } else {
-            showToast(`Ошибка входа. Код: ${res.status}`, 'error');
+            const errData = await res.json().catch(() => ({}));
+            // Выводим точную ошибку от сервера
+            showToast(`Ошибка ТГ: ${errData.error || res.status}`, 'error');
             fallbackUser();
         }
     } catch(e) { 
-        showToast('Ошибка сети при входе.', 'error');
+        showToast('Ошибка сети при входе', 'error');
         fallbackUser();
     }
 }
@@ -102,7 +104,7 @@ function renderCategories() {
 
 window.openCategory = (catName) => {
     state.currentCategory = catName;
-    state.currentArticle = null; // СБРОС
+    state.currentArticle = null;
     document.getElementById('categoryTitle').textContent = catName;
     
     const list = document.getElementById('articlesList');
@@ -186,7 +188,7 @@ window.resetCalc = () => {
 };
 
 window.saveCalc = async () => {
-    if (!state.user || !state.user.id) return showToast('Нужно авторизоваться!', 'error');
+    if (!state.user || !state.user.id) return showToast('Ошибка: нет ID пользователя. Войдите заново.', 'error');
     
     const buy = parseFloat(document.getElementById('calcBuy').value);
     const sell = parseFloat(document.getElementById('calcSell').value);
@@ -211,7 +213,8 @@ window.saveCalc = async () => {
             showToast('Расчет добавлен! 📊', 'success');
             resetCalc();
         } else {
-            showToast('Ошибка сервера', 'error');
+            const errData = await res.json().catch(() => ({}));
+            showToast(`Ошибка: ${errData.error || 'Сервер занят'}`, 'error');
         }
     } catch(e) { showToast('Ошибка сети', 'error'); }
 };

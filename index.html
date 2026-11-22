@@ -72,47 +72,58 @@
         </div>
     </div>
 
-    <!-- ЭКРАН 4: КАЛЬКУЛЯТОР -->
+    <!-- ЭКРАН 4: КАЛЬКУЛЯТОР (НОВЫЙ ДИЗАЙН) -->
     <div id="screen-calc" class="screen">
-        <div class="flex-between" style="margin-bottom: 24px;">
-            <h1 class="page-title">Калькулятор</h1>
-            <button class="btn-icon" onclick="resetCalc()">↻</button>
-        </div>
+        <h1 class="page-title" style="margin-bottom: 24px;">Калькулятор</h1>
         
-        <div class="dark-card">
-            <div class="input-group">
-                <label>Курс покупки (₽)</label>
-                <input type="number" id="calcBuy" placeholder="80" oninput="calcP2P()">
+        <div class="calc-box">
+            <!-- Сетка курсов -->
+            <div class="calc-grid">
+                <div class="calc-input-wrap">
+                    <label>Курс покупки</label>
+                    <input type="number" id="calcBuy" placeholder="80.00" oninput="calcP2P()">
+                </div>
+                <div class="calc-input-wrap">
+                    <label>Курс продажи</label>
+                    <input type="number" id="calcSell" placeholder="85.00" oninput="calcP2P()">
+                </div>
             </div>
-            <div class="input-group">
-                <label>Курс продажи (₽)</label>
-                <input type="number" id="calcSell" placeholder="85" oninput="calcP2P()">
-            </div>
-            <div class="input-group">
+
+            <!-- Сумма сделки -->
+            <div class="calc-input-wrap" style="margin-bottom: 12px;">
                 <label>Сумма сделки (₽)</label>
-                <input type="number" id="calcAmount" placeholder="10000" oninput="calcP2P()">
+                <input type="number" id="calcAmount" placeholder="10 000" oninput="calcP2P()" style="font-size: 24px; height: 64px;">
             </div>
-            
-            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                <div class="input-group" style="flex: 1; margin-bottom: 0;">
-                    <label>Комиссия покупки (%)</label>
+
+            <!-- Сетка комиссий -->
+            <div class="calc-grid">
+                <div class="calc-input-wrap">
+                    <label>Ком. покупки (%)</label>
                     <input type="number" id="calcBuyFee" placeholder="0" oninput="calcP2P()">
                 </div>
-                <div class="input-group" style="flex: 1; margin-bottom: 0;">
-                    <label>Комиссия продажи (%)</label>
+                <div class="calc-input-wrap">
+                    <label>Ком. продажи (%)</label>
                     <input type="number" id="calcSellFee" placeholder="0" oninput="calcP2P()">
                 </div>
             </div>
+        </div>
 
-            <div class="calc-result">
-                <div class="res-row"><span>Спред:</span> <strong id="resSpread">0 ₽ (0%)</strong></div>
-                <div class="res-row" style="margin-top: 12px; font-size: 20px;"><span>Прибыль:</span> <strong id="resProfit" style="color: var(--grn);">0 ₽</strong></div>
+        <!-- Результат -->
+        <div class="calc-result-box">
+            <div class="res-row-small">
+                <span>Спред:</span>
+                <strong id="resSpread">0 ₽ (0%)</strong>
             </div>
+            <div class="res-row-big">
+                <span>Прибыль:</span>
+                <strong id="resProfit" style="color: var(--grn);">0 ₽</strong>
+            </div>
+        </div>
 
-            <div style="display: flex; gap: 12px; margin-top: 24px;">
-                <button class="btn btn-ghost" onclick="resetCalc()" style="flex: 1; border: 1px solid var(--card-border);">Сброс</button>
-                <button class="btn btn-primary" onclick="saveCalc()" style="flex: 2;">Добавить в статистику</button>
-            </div>
+        <!-- Кнопки -->
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button class="btn btn-ghost" onclick="resetCalc()" style="flex: 1; border: 1px solid var(--card-border); font-size: 15px;">Сброс</button>
+            <button class="btn btn-primary" onclick="saveCalc()" style="flex: 2; font-size: 15px;">В статистику</button>
         </div>
     </div>
 
