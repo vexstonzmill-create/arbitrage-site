@@ -67,7 +67,6 @@ async function loadData() {
     state.categories = data.categories || [];
     state.articles = data.articles || [];
     
-    // Обновляем верхнюю статистику
     const countEl = document.getElementById('statArticlesCount');
     if (countEl) countEl.textContent = state.articles.length;
 
@@ -352,7 +351,7 @@ window.submitArticle = async () => {
     closeModal('submitArticleModal'); showToast('Отправлено на модерацию!', 'success');
 };
 
-window.closeModal = (id) => document.getElementById(id).classList.remove('active');); backToCategory();
+window.closeModal = (id) => document.getElementById(id).classList.remove('active');id) => document.getElementById(id).classList.remove('active');); backToCategory();
 });
 
 window.openSubmitArticleModal = () => document.getElementById('submitArticleModal').classList.add('active');
