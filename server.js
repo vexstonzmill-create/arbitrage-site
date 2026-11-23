@@ -22,6 +22,8 @@ async function initDB() {
     await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT);`);
     await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, author_id BIGINT, price NUMERIC DEFAULT 0, status TEXT DEFAULT 'published', updated_at TIMESTAMPTZ DEFAULT now());`);
     await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', requisites TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, type TEXT, amount NUMERIC, description TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_requisites (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, bank_name TEXT, card_number TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
     
     const checkCats = await pool.query('SELECT count(*) FROM categories');
     if (parseInt(checkCats.rows[0].count) === 0) {
@@ -59,7 +61,6 @@ app.post('/api/auth/telegram', async (req, res) => {
     
     const user = result.rows[0];
     if (user.is_blocked) return res.status(403).json({ error: 'Аккаунт заблокирован' });
-
     res.json({ token: 'token_' + tgUser.id, user });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -72,16 +73,44 @@ app.get('/api/data', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- ЮЗЕР: ОТПРАВКА СТАТЬИ ---
+// --- СТАТЬИ ---
 app.post('/api/articles/submit', async (req, res) => {
   const { userId, category, title, content, price } = req.body;
   try {
-    await pool.query(
-      "INSERT INTO articles (category, title, content, author_id, price, status) VALUES ($1, $2, $3, $4, $5, 'pending')", 
-      [category, title, content, userId, price || 0]
-    );
+    await pool.query("INSERT INTO articles (category, title, content, author_id, price, status) VALUES ($1, $2, $3, $4, $5, 'pending')", [category, title, content, userId, price || 0]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.post('/api/articles', async (req, res) => {
+  const { category, title, content, image_url } = req.body;
+  try {
+    await pool.query("INSERT INTO articles (category, title, content, image_url, status) VALUES ($1, $2, $3, $4, 'published')", [category, title, content, image_url]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.put('/api/articles/:id', async (req, res) => {
+  const { title, content, image_url } = req.body;
+  try {
+    await pool.query('UPDATE articles SET title = $1, content = $2, image_url = $3, updated_at = now() WHERE id = $4', [title, content, image_url, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.delete('/api/articles/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM articles WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.post('/api/categories', async (req, res) => {
+  const { name, icon } = req.body;
+  try {
+    await pool.query('INSERT INTO categories (name, icon) VALUES ($1, $2)', [name, icon || '📄']);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Exists' }); }
 });
 
 // --- ОПЛАТА ---
@@ -109,14 +138,10 @@ app.post('/api/user/payment-paid/:requestId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- АДМИН: ЗАЯВКИ ---
+// --- АДМИН: ЗАЯВКИ И ЮЗЕРЫ ---
 app.get('/api/admin/payments', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT pr.*, u.display_name, u.username 
-      FROM payment_requests pr JOIN users u ON pr.user_id = u.id
-      WHERE pr.status IN ('pending', 'paid') ORDER BY pr.created_at DESC
-    `);
+    const result = await pool.query(`SELECT pr.*, u.display_name, u.username FROM payment_requests pr JOIN users u ON pr.user_id = u.id WHERE pr.status IN ('pending', 'paid', 'requisites_sent') ORDER BY pr.created_at DESC`);
     res.json({ requests: result.rows });
   } catch (e) { res.json({ requests: [] }); }
 });
@@ -138,7 +163,6 @@ app.post('/api/admin/approve-payment', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- АДМИН: ПОЛЬЗОВАТЕЛИ ---
 app.get('/api/admin/users', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users ORDER BY id DESC');
@@ -169,7 +193,7 @@ app.delete('/api/admin/users/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- АДМИН: МОДЕРАЦИЯ СТАТЕЙ ---
+// --- АДМИН: МОДЕРАЦИЯ ---
 app.get('/api/admin/moderation', async (req, res) => {
   try {
     const result = await pool.query("SELECT a.*, u.display_name as author_name FROM articles a LEFT JOIN users u ON a.author_id = u.id WHERE a.status = 'pending'");
@@ -178,29 +202,41 @@ app.get('/api/admin/moderation', async (req, res) => {
 });
 
 app.post('/api/admin/moderate', async (req, res) => {
-  const { articleId, action } = req.body; // action: 'approve' or 'reject'
+  const { articleId, action } = req.body;
   try {
-    if (action === 'approve') {
-      await pool.query("UPDATE articles SET status = 'published' WHERE id = $1", [articleId]);
-    } else {
-      await pool.query("DELETE FROM articles WHERE id = $1", [articleId]); // Reject = delete for simplicity
-    }
+    if (action === 'approve') await pool.query("UPDATE articles SET status = 'published' WHERE id = $1", [articleId]);
+    else await pool.query("DELETE FROM articles WHERE id = $1", [articleId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- БАЗОВЫЕ СТАТЬИ АДМИНА ---
-app.post('/api/articles', async (req, res) => {
-  const { category, title, content, image_url } = req.body;
+// --- ТРАНЗАКЦИИ И РЕКВИЗИТЫ ЮЗЕРА ---
+app.get('/api/transactions/:userId', async (req, res) => {
   try {
-    await pool.query("INSERT INTO articles (category, title, content, image_url, status) VALUES ($1, $2, $3, $4, 'published')", [category, title, content, image_url]);
+    const result = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC', [req.params.userId]);
+    res.json({ items: result.rows });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.post('/api/transactions', async (req, res) => {
+  const { userId, type, amount, description } = req.body;
+  try {
+    await pool.query('INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)', [userId, type, amount, description]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-app.delete('/api/articles/:id', async (req, res) => {
+app.get('/api/user-requisites/:userId', async (req, res) => {
   try {
-    await pool.query('DELETE FROM articles WHERE id = $1', [req.params.id]);
+    const result = await pool.query('SELECT * FROM user_requisites WHERE user_id = $1 ORDER BY created_at DESC', [req.params.userId]);
+    res.json({ items: result.rows });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.post('/api/user-requisites', async (req, res) => {
+  const { userId, bank_name, card_number } = req.body;
+  try {
+    await pool.query('INSERT INTO user_requisites (user_id, bank_name, card_number) VALUES ($1, $2, $3)', [userId, bank_name, card_number]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
