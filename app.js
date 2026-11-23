@@ -351,16 +351,4 @@ window.submitArticle = async () => {
     closeModal('submitArticleModal'); showToast('Отправлено на модерацию!', 'success');
 };
 
-window.closeModal = (id) => document.getElementById(id).classList.remove('active');id) => document.getElementById(id).classList.remove('active');); backToCategory();
-});
-
-window.openSubmitArticleModal = () => document.getElementById('submitArticleModal').classList.add('active');
-window.submitArticle = async () => {
-    const cat = document.getElementById('subCat').value; const title = document.getElementById('subTitle').value;
-    const content = document.getElementById('subContent').value; const price = parseFloat(document.getElementById('subPrice').value) || 0;
-    if(!title || !content) return showToast('Заполните поля', 'error');
-    await fetch(`${API_URL}/api/articles/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, category: cat, title, content, price }) });
-    closeModal('submitArticleModal'); showToast('Отправлено на модерацию!', 'success');
-};
-
 window.closeModal = (id) => document.getElementById(id).classList.remove('active');

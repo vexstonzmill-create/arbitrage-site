@@ -234,10 +234,4 @@ app.post('/api/user-requisites', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));it pool.query('INSERT INTO user_requisites (user_id, bank_name, card_number) VALUES ($1, $2, $3)', [userId, bank_name, card_number]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: 'Error' }); }
-});
-
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
