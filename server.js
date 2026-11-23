@@ -138,7 +138,7 @@ app.post('/api/user/payment-paid/:requestId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- АДМИН: ЗАЯВКИ И ЮЗЕРЫ ---
+// --- АДМИН ---
 app.get('/api/admin/payments', async (req, res) => {
   try {
     const result = await pool.query(`SELECT pr.*, u.display_name, u.username FROM payment_requests pr JOIN users u ON pr.user_id = u.id WHERE pr.status IN ('pending', 'paid', 'requisites_sent') ORDER BY pr.created_at DESC`);
@@ -186,14 +186,6 @@ app.post('/api/admin/users/toggle-block', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-app.delete('/api/admin/users/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: 'Error' }); }
-});
-
-// --- АДМИН: МОДЕРАЦИЯ ---
 app.get('/api/admin/moderation', async (req, res) => {
   try {
     const result = await pool.query("SELECT a.*, u.display_name as author_name FROM articles a LEFT JOIN users u ON a.author_id = u.id WHERE a.status = 'pending'");
@@ -210,7 +202,7 @@ app.post('/api/admin/moderate', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- ТРАНЗАКЦИИ И РЕКВИЗИТЫ ЮЗЕРА ---
+// --- ФИНАНСЫ ---
 app.get('/api/transactions/:userId', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC', [req.params.userId]);
@@ -237,6 +229,12 @@ app.post('/api/user-requisites', async (req, res) => {
   const { userId, bank_name, card_number } = req.body;
   try {
     await pool.query('INSERT INTO user_requisites (user_id, bank_name, card_number) VALUES ($1, $2, $3)', [userId, bank_name, card_number]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));it pool.query('INSERT INTO user_requisites (user_id, bank_name, card_number) VALUES ($1, $2, $3)', [userId, bank_name, card_number]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });

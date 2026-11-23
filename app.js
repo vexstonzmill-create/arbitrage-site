@@ -66,6 +66,11 @@ async function loadData() {
     const data = await res.json();
     state.categories = data.categories || [];
     state.articles = data.articles || [];
+    
+    // Обновляем верхнюю статистику
+    const countEl = document.getElementById('statArticlesCount');
+    if (countEl) countEl.textContent = state.articles.length;
+
     renderCategories();
     const subCat = document.getElementById('subCat');
     if (subCat) subCat.innerHTML = state.categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
@@ -75,7 +80,15 @@ function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
     grid.innerHTML = state.categories.map(cat => {
         const count = state.articles.filter(a => a.category === cat.name).length;
-        return `<div class="cat-card" onclick="openCategory('${cat.name}')"><div class="icon">${cat.icon}</div><div><h4>${cat.name}</h4><span>${count} статей</span></div></div>`;
+        return `
+        <div class="cat-item" onclick="openCategory('${cat.name}')">
+            <div class="icon">${cat.icon}</div>
+            <div class="info">
+                <h4>${cat.name}</h4>
+                <span>${count} статей</span>
+            </div>
+            <div class="arrow">›</div>
+        </div>`;
     }).join('');
 }
 
@@ -91,10 +104,7 @@ window.openCategory = (catName) => {
 };
 
 window.openArticle = (id) => {
-    if (!state.user.is_paid && state.user.role !== 'admin') {
-        checkPaymentStatus();
-        return;
-    }
+    if (!state.user.is_paid && state.user.role !== 'admin') { checkPaymentStatus(); return; }
     const art = state.articles.find(a => a.id === id);
     state.currentArticle = art;
     document.getElementById('articleTitle').textContent = art.title;
@@ -117,7 +127,7 @@ async function checkPaymentStatus() {
     if (data.request && data.request.status === 'requisites_sent') {
         content.innerHTML = `
             <p style="font-size:14px; margin-bottom:10px; font-weight:700;">Оплатите по реквизитам:</p>
-            <div style="background:#fff; padding:12px; border-radius:12px; font-weight:800; font-size:16px; margin-bottom:16px; border:1px dashed #000;">${data.request.requisites}</div>
+            <div style="background:var(--bg); padding:12px; border-radius:12px; font-weight:800; font-size:16px; margin-bottom:16px; border:1px dashed var(--primary);">${data.request.requisites}</div>
             <button class="btn btn-primary" onclick="userPaid(${data.request.id})">Я оплатил</button>
         `;
     } else if (data.request && data.request.status === 'paid') {
@@ -171,17 +181,13 @@ window.show = async (screenId) => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.querySelector(`.nav-item[data-target="${screenId}"]`)?.classList.add('active');
 
-    if (screenId === 'profile') {
-        renderProfile();
-        if (state.user.is_paid) { loadTransactions(); loadUserRequisites(); }
-    }
+    if (screenId === 'profile') { renderProfile(); if (state.user.is_paid) loadTransactions(); }
     if (screenId === 'admin') loadAdminTab('payments', document.querySelector('.tab-btn'));
 };
 
 async function renderProfile() {
     const container = document.getElementById('profileContent');
     const isPaid = state.user.is_paid || state.user.role === 'admin';
-    
     container.innerHTML = `
         <div class="card" style="text-align:center; padding: 24px; background:#fff; border-radius:24px; box-shadow: var(--shadow); border: 1px solid var(--card-border); margin-bottom: 16px;">
             <div class="avatar" style="width:70px; height:70px; font-size:28px; margin: 0 auto 16px; background:#f0f0f0; color:#000;">${state.user.display_name[0]}</div>
@@ -202,22 +208,12 @@ window.openQuickAction = () => {
     else { checkPaymentStatus(); }
 };
 
-// === ФИНАНСЫ И РЕКВИЗИТЫ ЮЗЕРА ===
 window.openTransModal = () => document.getElementById('transModal').classList.add('active');
-window.openReqUserModal = () => document.getElementById('reqUserModal').classList.add('active');
-
 window.saveTransaction = async () => {
     const type = document.getElementById('transType').value; const amount = parseFloat(document.getElementById('transAmount').value); const desc = document.getElementById('transDesc').value;
     if (!amount || !desc) return showToast('Заполните поля', 'error');
     await fetch(`${API_URL}/api/transactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, type, amount, description: desc }) });
     closeModal('transModal'); showToast('Операция добавлена', 'success'); loadTransactions();
-};
-
-window.saveUserRequisite = async () => {
-    const bank = document.getElementById('reqBank').value; const card = document.getElementById('reqCard').value;
-    if (!bank || !card) return showToast('Заполните поля', 'error');
-    await fetch(`${API_URL}/api/user-requisites`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, bank_name: bank, card_number: card }) });
-    closeModal('reqUserModal'); showToast('Реквизит добавлен', 'success'); loadUserRequisites();
 };
 
 async function loadTransactions() {
@@ -235,18 +231,10 @@ async function loadTransactions() {
     document.getElementById('netProfit').style.color = (inc - exp) >= 0 ? 'var(--grn)' : 'var(--red)';
 }
 
-async function loadUserRequisites() {
-    const list = document.getElementById('userRequisitesList');
-    const res = await fetch(`${API_URL}/api/user-requisites/${state.user.id}`); const data = await res.json();
-    list.innerHTML = data.items.length ? data.items.map(r => `
-        <div class="stat-item"><div><div style="font-weight:800;">${r.bank_name}</div><div class="info">${r.card_number}</div></div><div style="font-size:24px; cursor:pointer;" onclick="navigator.clipboard.writeText('${r.card_number}'); showToast('Скопировано', 'success')">📋</div></div>
-    `).join('') : '<p style="color:var(--dim); font-size:14px;">Нет реквизитов</p>';
-}
-
 // === АДМИНКА ===
 window.switchAdminTab = (tab, el) => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    if (el) el.classList.add('active'); else document.querySelector('.tab-btn').classList.add('active');
+    if (el) el.classList.add('active');
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     document.getElementById('adminTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
     loadAdminTab(tab);
@@ -268,7 +256,7 @@ async function loadAdminTab(tab) {
         const res = await fetch(`${API_URL}/api/admin/users`); const data = await res.json();
         document.getElementById('adminUsersList').innerHTML = data.users.map(u => `
             <div class="stat-item" style="flex-wrap:wrap; gap:10px;">
-                <div><div style="font-weight:800;">${u.display_name}</div><div style="font-size:12px; color:var(--dim);">@${u.username} | ${u.role}</div></div>
+                <div><div style="font-weight:800;">${u.display_name}</div><div style="font-size:12px; color:var(--dim);">@${u.username}</div></div>
                 <div style="display:flex; gap:6px;">
                     <button class="btn ${u.is_paid ? 'btn-danger' : 'btn-primary'}" style="padding:8px; font-size:12px; width:auto;" onclick="togglePaid(${u.id}, ${!u.is_paid})">${u.is_paid ? 'Забрать' : 'Выдать'}</button>
                     <button class="btn btn-ghost" style="padding:8px; font-size:12px; width:auto;" onclick="toggleBlock(${u.id}, ${!u.is_blocked})">${u.is_blocked ? 'Разблок.' : 'Блок'}</button>
@@ -322,9 +310,10 @@ window.moderateArticle = (articleId, action) => showConfirm('Модерация'
 // === ФУНКЦИИ СТАТЕЙ ===
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
 window.saveCategory = async () => {
-    const name = document.getElementById('newCatName').value; if(!name) return;
-    await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon: '📄' }) });
-    closeModal('catModal'); loadData();
+    const name = document.getElementById('newCatName').value; const icon = document.getElementById('newCatIcon').value || '📄';
+    if(!name) return;
+    await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
+    closeModal('catModal'); showToast('Категория добавлена', 'success'); loadData();
 };
 
 window.openArticleModal = (isEdit = false) => {
@@ -342,16 +331,28 @@ window.openArticleModal = (isEdit = false) => {
 
 window.saveArticle = async () => {
     const title = document.getElementById('editTitle').value; const content = document.getElementById('editContent').value;
-    if(!title || !content) return;
+    if(!title || !content) return showToast('Заполните поля', 'error');
     const isEdit = !!state.currentArticle;
     const url = isEdit ? `${API_URL}/api/articles/${state.currentArticle.id}` : `${API_URL}/api/articles`;
     await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, content, category: state.currentCategory }) });
-    closeModal('articleModal'); loadData(); show('home');
+    closeModal('articleModal'); showToast('Сохранено!', 'success'); await loadData(); show('home');
 };
 
 window.deleteArticle = () => showConfirm('Удалить?', 'Действие необратимо', async () => {
     await fetch(`${API_URL}/api/articles/${state.currentArticle.id}`, { method: 'DELETE' });
-    closeModal('articleModal'); loadData(); backToCategory();
+    closeModal('articleModal'); showToast('Удалено', 'success'); await loadData(); backToCategory();
+});
+
+window.openSubmitArticleModal = () => document.getElementById('submitArticleModal').classList.add('active');
+window.submitArticle = async () => {
+    const cat = document.getElementById('subCat').value; const title = document.getElementById('subTitle').value;
+    const content = document.getElementById('subContent').value; const price = parseFloat(document.getElementById('subPrice').value) || 0;
+    if(!title || !content) return showToast('Заполните поля', 'error');
+    await fetch(`${API_URL}/api/articles/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, category: cat, title, content, price }) });
+    closeModal('submitArticleModal'); showToast('Отправлено на модерацию!', 'success');
+};
+
+window.closeModal = (id) => document.getElementById(id).classList.remove('active');); backToCategory();
 });
 
 window.openSubmitArticleModal = () => document.getElementById('submitArticleModal').classList.add('active');
