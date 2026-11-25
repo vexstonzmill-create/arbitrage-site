@@ -32,45 +32,37 @@
         </div>
 
         <!-- Календарь -->
-        <div class="calendar-strip">
-            <div class="day"><span>ПН</span><div class="date">1</div></div>
-            <div class="day"><span>ВТ</span><div class="date">2</div></div>
-            <div class="day"><span>СР</span><div class="date">3</div></div>
-            <div class="day active"><span>ЧТ</span><div class="date">4<svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"/></svg></div></div>
-            <div class="day"><span>ПТ</span><div class="date">5</div><div class="dot"></div></div>
-            <div class="day"><span>СБ</span><div class="date">6</div><div class="dot"></div></div>
-            <div class="day"><span>ВС</span><div class="date">7</div><div class="dot"></div></div>
+        <div class="calendar-strip" id="calendarStrip">
+            <!-- Рендерится через JS -->
         </div>
 
-        <!-- Трекер цели -->
-        <div class="goal-card">
-            <div class="goal-header">
-                <div class="goal-icon">🎯</div>
-                <div>
-                    <h3>Моя цель</h3>
-                    <p>Спланируй свой профит</p>
-                </div>
-            </div>
-            <div class="goal-inputs">
-                <div class="input-row">
-                    <div class="input-group"><label>Цель (₽)</label><input type="number" id="goalAmount" placeholder="100000" oninput="calculateGoalUI()"></div>
-                    <div class="input-group"><label>Старт (₽)</label><input type="number" id="goalStart" placeholder="10000" oninput="calculateGoalUI()"></div>
-                </div>
-                <div class="input-row">
-                    <div class="input-group"><label>Дата (ДД.ММ.ГГГГ)</label><input type="date" id="goalDate" onchange="calculateGoalUI()"></div>
-                    <div class="input-group"><label>План в день (%)</label><input type="number" id="goalRate" placeholder="30" oninput="calculateGoalUI()"></div>
-                </div>
-            </div>
-            <button class="btn btn-primary btn-sm" onclick="saveGoal()">Рассчитать и сохранить</button>
+        <!-- Блок цели (если нет цели - кнопка создания) -->
+        <div id="goalContainer">
+            <button class="btn btn-primary" onclick="openGoalModal()" id="createGoalBtn" style="margin-bottom: 24px;">Создать цель 🎯</button>
             
-            <div id="goalResult" class="goal-result" style="display: none;">
-                <div class="res-row"><span>Дней осталось:</span> <strong id="resDays">0</strong></div>
-                <div class="res-row"><span>Нужно в день (₽):</span> <strong id="resDailyRub">0</strong></div>
-                <div class="res-row"><span>Нужно в день (%):</span> <strong id="resDailyPct">0</strong></div>
+            <div class="goal-card" id="goalCard" style="display: none;">
+                <div class="goal-header">
+                    <div class="goal-icon">🎯</div>
+                    <div style="flex:1;">
+                        <h3>Цель: <span id="goalTargetDisplay">0</span> ₽</h3>
+                        <p>Прогресс: <span id="goalProgressDisplay">0</span> ₽</p>
+                    </div>
+                    <button class="btn-icon" onclick="openGoalModal()" style="width:32px; height:32px; font-size:14px;">✏️</button>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="goalProgressBar"></div></div>
+                <div class="goal-stats">
+                    <div><span>До цели</span><strong id="goalLeftDisplay">0 ₽</strong></div>
+                    <div><span>В день</span><strong id="goalDailyDisplay">0 ₽</strong></div>
+                    <div><span>Дней</span><strong id="goalDaysDisplay">0</strong></div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="openBalanceModal()" style="margin-top: 16px;">+ Добавить прибыль</button>
             </div>
         </div>
 
-        <div class="section-title" style="margin-top: 30px;">Разделы</div>
+        <div class="section-title" style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center;">
+            Разделы
+            <button id="adminAddCatBtn" class="btn-icon" onclick="openCatModal()" style="display: none;">+</button>
+        </div>
         <div class="categories-list" id="categoriesGrid"></div>
     </div>
 
@@ -192,7 +184,45 @@
         </div>
     </div>
 
-    <!-- МОДАЛКИ -->
+    <!-- МОДАЛКА: ЦЕЛЬ -->
+    <div id="goalModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Настройка цели</h3>
+            <div class="input-row">
+                <div class="input-group"><label>Цель (₽)</label><input type="number" id="goalAmount" placeholder="100000"></div>
+                <div class="input-group"><label>Старт (₽)</label><input type="number" id="goalStart" placeholder="10000"></div>
+            </div>
+            <div class="input-row">
+                <div class="input-group"><label>Дата</label><input type="date" id="goalDate"></div>
+                <div class="input-group">
+                    <label>Режим</label>
+                    <select id="goalMode" class="input" style="padding: 12px; background: var(--bg); border-radius: 12px; border: 1px solid var(--card-border); font-weight:700;">
+                        <option value="rub">В рублях</option>
+                        <option value="pct">В процентах</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-group" style="margin-bottom: 16px;">
+                <label id="goalRateLabel">План в день (₽ или %)</label>
+                <input type="number" id="goalRate" placeholder="500" step="0.1">
+            </div>
+            <button class="btn btn-primary" onclick="saveGoal()">Сохранить цель</button>
+            <button class="btn btn-ghost" onclick="closeModal('goalModal')">Отмена</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА: ДОБАВИТЬ БАЛАНС -->
+    <div id="balanceModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Добавить прибыль</h3>
+            <p style="font-size:13px; color:var(--dim); margin-bottom:16px;">Сколько вы заработали сегодня?</p>
+            <input type="number" id="dailyProfit" class="input" placeholder="Сумма (₽)" style="margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="addBalance()">Сохранить</button>
+            <button class="btn btn-ghost" onclick="closeModal('balanceModal')">Отмена</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛКИ АДМИНА -->
     <div id="catModal" class="modal-overlay">
         <div class="modal">
             <h3>Новая категория</h3>
@@ -209,21 +239,12 @@
             <input type="text" id="editTitle" class="input" placeholder="Заголовок" style="margin-bottom: 12px;">
             <textarea id="editContent" class="input" rows="6" placeholder="Текст статьи..." style="margin-bottom: 12px;"></textarea>
             <select id="editTier" class="input" style="margin-bottom: 16px; background: #fff;">
-                <option value="free">Доступ: Free (Бесплатно)</option>
-                <option value="pro">Доступ: PRO (По подписке)</option>
+                <option value="free">Доступ: Free</option>
+                <option value="pro">Доступ: PRO</option>
             </select>
             <button class="btn btn-primary" onclick="saveArticle()">Сохранить</button>
             <button class="btn btn-danger" id="deleteArtBtn" onclick="deleteArticle()" style="display: none; margin-top: 10px;">Удалить</button>
             <button class="btn btn-ghost" onclick="closeModal('articleModal')">Отмена</button>
-        </div>
-    </div>
-
-    <div id="sendReqModal" class="modal-overlay">
-        <div class="modal">
-            <h3>Реквизиты для оплаты</h3>
-            <textarea id="adminReqText" class="input" rows="4" placeholder="Номер карты..." style="margin-bottom: 16px;"></textarea>
-            <button class="btn btn-primary" onclick="sendRequisitesToUser()">Отправить</button>
-            <button class="btn btn-ghost" onclick="closeModal('sendReqModal')">Отмена</button>
         </div>
     </div>
 
@@ -241,6 +262,15 @@
         </div>
     </div>
 
+    <div id="sendReqModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Реквизиты для оплаты</h3>
+            <textarea id="adminReqText" class="input" rows="4" placeholder="Номер карты..." style="margin-bottom: 16px;"></textarea>
+            <button class="btn btn-primary" onclick="sendRequisitesToUser()">Отправить</button>
+            <button class="btn btn-ghost" onclick="closeModal('sendReqModal')">Отмена</button>
+        </div>
+    </div>
+
     <div id="confirmModal" class="modal-overlay">
         <div class="modal" style="text-align:center;">
             <h3 id="confirmTitle">Подтверждение</h3>
@@ -250,7 +280,6 @@
         </div>
     </div>
 
-    <!-- Paywall -->
     <div id="paywallModal" class="modal-overlay">
         <div class="modal" style="text-align: center;">
             <div style="font-size: 50px; margin-bottom: 16px;">🔒</div>

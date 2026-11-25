@@ -31,11 +31,11 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 
 /* Календарь */
 .calendar-strip { display: flex; justify-content: space-between; background: var(--card-bg); padding: 16px; border-radius: 24px; box-shadow: var(--shadow); margin-bottom: 24px; }
-.day { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--dim); }
+.day { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--dim); cursor: pointer; transition: 0.2s; padding: 4px; border-radius: 12px; }
+.day:active { background: #f0f0f5; }
 .day .date { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--txt); font-weight: 800; font-size: 14px; position: relative; }
 .day.active .date { background: var(--primary); color: #fff; }
 .day .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--primary); margin-top: -4px; }
-.day .date svg { position: absolute; bottom: -4px; right: -4px; background: var(--primary); border-radius: 50%; padding: 2px; }
 
 /* Цель */
 .goal-card { background: var(--card-bg); border-radius: 24px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--card-border); }
@@ -43,16 +43,13 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 .goal-icon { width: 44px; height: 44px; background: rgba(124, 58, 237, 0.1); color: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
 .goal-header h3 { font-size: 16px; font-weight: 800; }
 .goal-header p { font-size: 12px; color: var(--dim); font-weight: 500; }
-.goal-inputs .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
-.input-group { flex: 1; }
-.input-group label { display: block; font-size: 11px; color: var(--dim); font-weight: 600; margin-bottom: 4px; margin-left: 4px; }
-.input-group input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--card-border); font-size: 14px; background: var(--bg); font-weight: 700; outline: none; }
-.btn-sm { padding: 12px; font-size: 14px; border-radius: 12px; }
-.goal-result { margin-top: 16px; padding: 16px; background: var(--bg); border-radius: 16px; }
-.res-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--dim); }
-.res-row strong { color: var(--txt); font-weight: 800; }
 
-/* Разделы (Категории) */
+.progress-bar { width: 100%; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-bottom: 16px; }
+.progress-fill { height: 100%; background: var(--primary); width: 0%; transition: 0.5s; }
+.goal-stats { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); }
+.goal-stats strong { display: block; color: var(--txt); font-size: 15px; font-weight: 800; margin-top: 2px; }
+
+/* Разделы */
 .section-title { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 16px; }
 .categories-list { display: flex; flex-direction: column; gap: 10px; }
 .cat-item { display: flex; align-items: center; padding: 14px; border-radius: 16px; background: var(--card-bg); cursor: pointer; transition: 0.2s; border: 1px solid var(--card-border); box-shadow: var(--shadow-sm); }
@@ -63,7 +60,7 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 .cat-item span { font-size: 12px; color: var(--dim); font-weight: 500; }
 .cat-item .arrow { color: var(--dim); font-size: 18px; font-weight: 800; }
 
-/* СТАТЬИ (Обновленный дизайн) */
+/* СТАТЬИ */
 .back-btn, .edit-btn, .btn-icon { background: var(--card-bg); border: 1px solid var(--card-border); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--primary); box-shadow: var(--shadow-sm); }
 .btn-icon { border-radius: 12px; background: var(--primary); color: #fff; border: none; font-size: 20px; }
 .articles-list { display: flex; flex-direction: column; gap: 12px; }
@@ -72,29 +69,18 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
     background: var(--card-bg); padding: 16px; border-radius: 20px; 
     display: flex; justify-content: space-between; align-items: center; 
     box-shadow: var(--shadow-sm); border: 1px solid var(--card-border);
-    transition: 0.2s; position: relative;
+    transition: 0.2s; position: relative; cursor: pointer;
 }
 .article-item .art-info { flex: 1; padding-right: 10px; }
 .article-item h4 { font-size: 16px; font-weight: 800; margin-bottom: 4px; color: var(--txt); }
 .article-item .date { font-size: 12px; color: var(--dim); font-weight: 500; }
 
-/* Кнопки в списке */
-.btn-read { 
-    background: rgba(16, 185, 129, 0.1); color: var(--grn); border: none; 
-    padding: 10px 16px; border-radius: 12px; font-size: 13px; font-weight: 800; cursor: pointer; 
-}
-.btn-locked { 
-    background: #e5e5ea; color: #8e8e93; border: none; 
-    padding: 10px 16px; border-radius: 12px; font-size: 13px; font-weight: 800; cursor: not-allowed; 
-}
+.btn-read { background: rgba(16, 185, 129, 0.1); color: var(--grn); border: none; padding: 10px 16px; border-radius: 12px; font-size: 13px; font-weight: 800; cursor: pointer; }
+.btn-locked { background: #e5e5ea; color: #8e8e93; border: none; padding: 10px 16px; border-radius: 12px; font-size: 13px; font-weight: 800; cursor: not-allowed; }
 
-/* Заблокированная статья */
 .article-item.locked { background: #f2f2f7; border-color: #e5e5ea; }
 .article-item.locked h4, .article-item.locked .date { color: #aeaeb2; }
-.pro-badge {
-    display: inline-block; background: #ffe4e6; color: #e11d48;
-    font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-top: 8px;
-}
+.pro-badge { display: inline-block; background: #ffe4e6; color: #e11d48; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-top: 8px; }
 
 /* Чтение */
 .article-content { background: var(--card-bg); padding: 24px; border-radius: 24px; box-shadow: var(--shadow); margin-top: 10px; border: 1px solid var(--card-border); }
@@ -142,10 +128,15 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 .modal { background: var(--card-bg); width: 100%; max-width: 400px; padding: 24px; border-radius: 28px; box-shadow: var(--shadow); }
 .modal h3 { margin-bottom: 16px; font-size: 20px; font-weight: 900; color: var(--txt); }
 .input { width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--card-border); font-size: 15px; background: var(--bg); color: var(--txt); outline: none; font-weight: 600; }
+.input-group { margin-bottom: 12px; }
+.input-group label { display: block; font-size: 11px; color: var(--dim); font-weight: 600; margin-bottom: 4px; margin-left: 4px; }
+.input-row { display: flex; gap: 10px; }
+.input-row .input-group { flex: 1; }
 .btn { width: 100%; padding: 16px; border-radius: 16px; font-size: 16px; font-weight: 800; border: none; cursor: pointer; }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-ghost { background: transparent; color: var(--dim); margin-top: 8px; }
 .btn-danger { background: rgba(239,68,68,0.1); color: var(--red); }
+.btn-sm { padding: 12px; font-size: 14px; border-radius: 12px; }
 
 /* Табы админки */
 .tabs-nav { display: flex; gap: 8px; margin-bottom: 20px; }
@@ -161,6 +152,9 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 
 .stat-item { background: var(--card-bg); border: 1px solid var(--card-border); padding: 16px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; box-shadow: var(--shadow-sm); }
 .stat-item .info { font-size: 13px; color: var(--dim); font-weight: 500; }
+.stat-item .profit { font-size: 16px; font-weight: 800; }
+.stat-item .profit.positive { color: var(--grn); }
+.stat-item .profit.negative { color: var(--red); } 13px; color: var(--dim); font-weight: 500; }
 .stat-item .profit { font-size: 16px; font-weight: 800; }
 .stat-item .profit.positive { color: var(--grn); }
 .stat-item .profit.negative { color: var(--red); }
