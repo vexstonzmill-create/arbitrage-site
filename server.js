@@ -18,13 +18,9 @@ const pool = new Pool({ connectionString: CONFIG.DATABASE_URL, ssl: { rejectUnau
 
 async function initDB() {
   try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false, is_blocked BOOLEAN DEFAULT false, goal_amount NUMERIC DEFAULT 0, start_capital NUMERIC DEFAULT 0, goal_date DATE, goal_daily_rate NUMERIC DEFAULT 0);`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false, is_blocked BOOLEAN DEFAULT false, goal_amount NUMERIC DEFAULT 0, start_capital NUMERIC DEFAULT 0, current_balance NUMERIC DEFAULT 0, goal_date DATE, goal_daily_rate NUMERIC DEFAULT 0, goal_mode TEXT DEFAULT 'rub');`);
     await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT);`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, author_id BIGINT, price NUMERIC DEFAULT 0, status TEXT DEFAULT 'published', updated_at TIMESTAMPTZ DEFAULT now());`);
-    
-    // Добавляем колонку tier, если её нет
-    await pool.query(`ALTER TABLE articles ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free';`);
-    
+    await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, author_id BIGINT, price NUMERIC DEFAULT 0, status TEXT DEFAULT 'published', tier TEXT DEFAULT 'free', updated_at TIMESTAMPTZ DEFAULT now());`);
     await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', requisites TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
     await pool.query(`CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, type TEXT, amount NUMERIC, description TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
     
@@ -69,10 +65,18 @@ app.post('/api/auth/telegram', async (req, res) => {
 });
 
 app.post('/api/user/goal', async (req, res) => {
-  const { userId, goal_amount, start_capital, goal_date, goal_daily_rate } = req.body;
+  const { userId, goal_amount, start_capital, current_balance, goal_date, goal_daily_rate, goal_mode } = req.body;
   try {
-    await pool.query('UPDATE users SET goal_amount = $1, start_capital = $2, goal_date = $3, goal_daily_rate = $4 WHERE id = $5', 
-      [goal_amount, start_capital, goal_date, goal_daily_rate, userId]);
+    await pool.query('UPDATE users SET goal_amount = $1, start_capital = $2, current_balance = $3, goal_date = $4, goal_daily_rate = $5, goal_mode = $6 WHERE id = $7', 
+      [goal_amount, start_capital, current_balance, goal_date, goal_daily_rate, goal_mode, userId]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/user/update-balance', async (req, res) => {
+  const { userId, amount } = req.body;
+  try {
+    await pool.query('UPDATE users SET current_balance = current_balance + $1 WHERE id = $2', [amount, userId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -85,7 +89,6 @@ app.get('/api/data', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- СТАТЬИ ---
 app.post('/api/articles', async (req, res) => {
   const { category, title, content, image_url, tier } = req.body;
   try {
@@ -119,7 +122,6 @@ app.post('/api/categories', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Exists' }); }
 });
 
-// --- ОПЛАТА И АДМИНКА ---
 app.post('/api/payment-request', async (req, res) => {
   const { userId } = req.body;
   try {

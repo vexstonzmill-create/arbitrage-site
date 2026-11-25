@@ -64,7 +64,6 @@ function updateUIForUser() {
     }
     if (state.user.is_paid) document.getElementById('financeSection').style.display = 'block';
 
-    // Рендер цели
     if (state.user.goal_amount > 0) {
         document.getElementById('createGoalBtn').style.display = 'none';
         document.getElementById('goalCard').style.display = 'block';
@@ -75,27 +74,22 @@ function updateUIForUser() {
     }
 }
 
-// === КАЛЕНДАРЬ ===
 function renderCalendar() {
     const strip = document.getElementById('calendarStrip');
     const today = new Date();
-    const currentDay = today.getDay() === 0 ? 7 : today.getDay(); // Пн = 1
+    const currentDay = today.getDay() === 0 ? 7 : today.getDay();
     const startOfWeek = new Date(today.setDate(today.getDate() - currentDay + 1));
-
     const days = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
     strip.innerHTML = '';
 
     for (let i = 0; i < 7; i++) {
         const d = new Date(startOfWeek);
         d.setDate(startOfWeek.getDate() + i);
-        
         const isToday = d.toDateString() === new Date().toDateString();
-        const dayNum = d.getDate();
-        
         strip.innerHTML += `
-            <div class="day ${isToday ? 'active' : ''}" onclick="showDayInfo(${dayNum}, '${d.toISOString().split('T')[0]}')">
+            <div class="day ${isToday ? 'active' : ''}" onclick="showDayInfo(${d.getDate()}, '${d.toISOString().split('T')[0]}')">
                 <span>${days[i]}</span>
-                <div class="date">${dayNum}</div>
+                <div class="date">${d.getDate()}</div>
                 ${isToday ? '<div class="dot"></div>' : ''}
             </div>
         `;
@@ -104,20 +98,15 @@ function renderCalendar() {
 
 window.showDayInfo = (dayNum, dateStr) => {
     if (!state.user.goal_amount) return showToast('Сначала создайте цель', 'info');
-
     const goalDate = new Date(state.user.goal_date);
     const targetDate = new Date(dateStr);
     const daysLeft = Math.ceil((goalDate.getTime() - targetDate.getTime()) / (1000 * 3600 * 24));
-    
     if (daysLeft < 0) return showToast('Эта дата уже прошла', 'error');
-
     const needed = state.user.goal_amount - state.user.start_capital;
     const dailyTarget = needed / (daysLeft || 1);
-
     showToast(`${dayNum}-е число. Нужно: ${dailyTarget.toFixed(0)} ₽. Осталось дней: ${daysLeft}`, 'info');
 };
 
-// === ЦЕЛИ ===
 window.openGoalModal = () => {
     document.getElementById('goalAmount').value = state.user.goal_amount || '';
     document.getElementById('goalStart').value = state.user.start_capital || '';
@@ -139,30 +128,14 @@ window.saveGoal = async () => {
     const date = document.getElementById('goalDate').value;
     const mode = document.getElementById('goalMode').value;
     const rate = parseFloat(document.getElementById('goalRate').value) || 0;
-
     if (!amount || !date) return showToast('Заполните цель и дату', 'error');
 
-    const payload = { 
-        userId: state.user.id, goal_amount: amount, start_capital: start, 
-        current_balance: state.user.current_balance || start, // при создании ставим текущий баланс = стартовый
-        goal_date: date, goal_daily_rate: rate, goal_mode: mode 
-    };
+    const payload = { userId: state.user.id, goal_amount: amount, start_capital: start, current_balance: state.user.current_balance || start, goal_date: date, goal_daily_rate: rate, goal_mode: mode };
 
-    await fetch(`${API_URL}/api/user/goal`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
+    await fetch(`${API_URL}/api/user/goal`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     
-    state.user.goal_amount = amount;
-    state.user.start_capital = start;
-    state.user.goal_date = date;
-    state.user.goal_mode = mode;
-    state.user.goal_daily_rate = rate;
-    state.user.current_balance = state.user.current_balance || start;
-
-    closeModal('goalModal');
-    showToast('Цель сохранена!', 'success');
-    updateUIForUser();
+    state.user.goal_amount = amount; state.user.start_capital = start; state.user.goal_date = date; state.user.goal_mode = mode; state.user.goal_daily_rate = rate; state.user.current_balance = state.user.current_balance || start;
+    closeModal('goalModal'); showToast('Цель сохранена!', 'success'); updateUIForUser();
 };
 
 function updateGoalUI() {
@@ -183,51 +156,34 @@ function updateGoalUI() {
     document.getElementById('goalDaysDisplay').textContent = daysLeft;
 
     let daily = 0;
-    if (daysLeft > 0 && left > 0) {
-        daily = left / daysLeft;
-    }
+    if (daysLeft > 0 && left > 0) daily = left / daysLeft;
     document.getElementById('goalDailyDisplay').textContent = `${daily.toFixed(0)} ₽`;
 }
 
-window.openBalanceModal = () => {
-    document.getElementById('dailyProfit').value = '';
-    document.getElementById('balanceModal').classList.add('active');
-};
-
+window.openBalanceModal = () => { document.getElementById('dailyProfit').value = ''; document.getElementById('balanceModal').classList.add('active'); };
 window.addBalance = async () => {
     const amount = parseFloat(document.getElementById('dailyProfit').value);
     if (!amount) return showToast('Введите сумму', 'error');
-
-    await fetch(`${API_URL}/api/user/update-balance`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: state.user.id, amount })
-    });
-
+    await fetch(`${API_URL}/api/user/update-balance`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, amount }) });
     state.user.current_balance = (state.user.current_balance || 0) + amount;
-    closeModal('balanceModal');
-    showToast('Баланс обновлен!', 'success');
-    updateGoalUI();
+    closeModal('balanceModal'); showToast('Баланс обновлен!', 'success'); updateGoalUI();
 };
 
-// === ОСТАЛЬНОЕ (ФИНАНСЫ, СТАТЬИ, НАВИГАЦИЯ) ===
 async function loadData() {
-    const res = await fetch(`${API_URL}/api/data`);
-    const data = await res.json();
-    state.categories = data.categories || [];
-    state.articles = data.articles || [];
-    renderCategories();
+    try {
+        const res = await fetch(`${API_URL}/api/data`);
+        const data = await res.json();
+        state.categories = data.categories || [];
+        state.articles = data.articles || [];
+        renderCategories();
+    } catch(e) { console.error('Load error', e); }
 }
 
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
     grid.innerHTML = state.categories.map(cat => {
         const count = state.articles.filter(a => a.category === cat.name).length;
-        return `
-        <div class="cat-item" onclick="openCategory('${cat.name}')">
-            <div class="icon">${cat.icon}</div>
-            <div class="info"><h4>${cat.name}</h4><span>${count} статей</span></div>
-            <div class="arrow">›</div>
-        </div>`;
+        return `<div class="cat-item" onclick="openCategory('${cat.name}')"><div class="icon">${cat.icon}</div><div class="info"><h4>${cat.name}</h4><span>${count} статей</span></div><div class="arrow">›</div></div>`;
     }).join('');
 }
 
@@ -240,15 +196,9 @@ window.openCategory = (catName) => {
     document.getElementById('articlesList').innerHTML = filtered.length ? filtered.map(art => {
         const isLocked = art.tier === 'pro' && !isPaid;
         if (isLocked) {
-            return `<div class="article-item locked" onclick="showPaywall()">
-                <div class="art-info"><h4>${art.title}</h4><div class="date">${new Date(art.updated_at).toLocaleDateString()}</div><div class="pro-badge">Нужен план PRO</div></div>
-                <button class="btn-locked">Недоступно</button>
-            </div>`;
+            return `<div class="article-item locked" onclick="showPaywall()"><div class="art-info"><h4>${art.title}</h4><div class="date">${new Date(art.updated_at).toLocaleDateString()}</div><div class="pro-badge">Нужен план PRO</div></div><button class="btn-locked">Недоступно</button></div>`;
         } else {
-            return `<div class="article-item" onclick="openArticle(${art.id})">
-                <div class="art-info"><h4>${art.title}</h4><div class="date">${new Date(art.updated_at).toLocaleDateString()}</div>${art.tier === 'pro' ? '<div class="pro-badge" style="background:#ede9fe; color:#7c3aed;">PRO</div>' : ''}</div>
-                <button class="btn-read">Ознакомиться</button>
-            </div>`;
+            return `<div class="article-item" onclick="openArticle(${art.id})"><div class="art-info"><h4>${art.title}</h4><div class="date">${new Date(art.updated_at).toLocaleDateString()}</div>${art.tier === 'pro' ? '<div class="pro-badge" style="background:#ede9fe; color:#7c3aed;">PRO</div>' : ''}</div><button class="btn-read">Ознакомиться</button></div>`;
         }
     }).join('') : '<p style="text-align:center; color:var(--dim);">Здесь пока пусто...</p>';
     show('category');
@@ -295,6 +245,7 @@ window.show = (screenId) => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.querySelector(`.nav-item[data-target="${screenId}"]`)?.classList.add('active');
     if (screenId === 'profile') { renderProfile(); loadTransactions(); }
+    if (screenId === 'admin') loadAdminTab('payments', document.querySelector('.tab-btn'));
 };
 
 async function renderProfile() {
@@ -323,13 +274,14 @@ window.requestPayment = async () => {
     showToast('Заявка отправлена!', 'success'); closeModal('paywallModal');
 };
 
-// === АДМИН ===
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
 window.saveCategory = async () => {
     const name = document.getElementById('newCatName').value; const icon = document.getElementById('newCatIcon').value || '📄';
-    if(!name) return;
-    await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
-    closeModal('catModal'); showToast('Категория добавлена', 'success'); loadData();
+    if(!name) return showToast('Введите название', 'error');
+    try {
+        await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
+        closeModal('catModal'); showToast('Категория добавлена', 'success'); await loadData();
+    } catch(e) { showToast('Ошибка сервера', 'error'); }
 };
 
 window.openArticleModal = (isEdit = false) => {
@@ -353,7 +305,49 @@ window.saveArticle = async () => {
     if(!title || !content) return showToast('Заполните поля', 'error');
     const isEdit = !!state.currentArticle;
     const url = isEdit ? `${API_URL}/api/articles/${state.currentArticle.id}` : `${API_URL}/api/articles`;
-    await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, content, category: state.currentCategory, tier }) });
-    closeModal('articleModal'); showToast('Сохранено!', 'success'); await loadData(); 
-    if(isEdit) openCategory(state.currentCategory); else backToCategory();
+    try {
+        await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, content, category: state.currentCategory, tier }) });
+        closeModal('articleModal'); showToast('Сохранено!', 'success'); await loadData(); 
+        if(isEdit) openCategory(state.currentCategory); else backToCategory();
+    } catch(e) { showToast('Ошибка при сохранении', 'error'); }
 };
+
+window.deleteArticle = () => showConfirm('Удалить?', 'Действие необратимо', async () => {
+    await fetch(`${API_URL}/api/articles/${state.currentArticle.id}`, { method: 'DELETE' });
+    closeModal('articleModal'); showToast('Удалено', 'success'); await loadData(); backToCategory();
+});
+
+// КАЛЬКУЛЯТОР ЛОГИКА
+window.calcP2P = () => {
+    const buy = parseFloat(document.getElementById('calcBuy').value) || 0;
+    const sell = parseFloat(document.getElementById('calcSell').value) || 0;
+    const amount = parseFloat(document.getElementById('calcAmount').value) || 0;
+    const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0;
+    const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
+
+    const resSpread = document.getElementById('resSpread');
+    const resProfit = document.getElementById('resProfit');
+
+    if(!buy || !sell || !amount) {
+        resSpread.textContent = '0 ₽ (0%)';
+        resProfit.textContent = '0 ₽';
+        return;
+    }
+
+    const usdtGross = amount / buy;
+    const usdtNet = usdtGross * (1 - (buyFee / 100));
+    const rubGross = usdtNet * sell;
+    const rubNet = rubGross * (1 - (sellFee / 100));
+    const profit = rubNet - amount;
+    const spreadPct = ((sell - buy) / buy) * 100;
+
+    resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
+    resProfit.textContent = `${profit.toFixed(2)} ₽`;
+    resProfit.style.color = profit >= 0 ? 'var(--grn)' : 'var(--red)';
+};
+
+window.resetCalc = () => {
+    ['calcBuy','calcSell','calcAmount','calcBuyFee','calcSellFee'].forEach(id=>document.getElementById(id).value='');
+    calcP2P();
+};
+window.saveCalc = () => showToast('Расчет сохранен!', 'success');

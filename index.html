@@ -32,11 +32,9 @@
         </div>
 
         <!-- Календарь -->
-        <div class="calendar-strip" id="calendarStrip">
-            <!-- Рендерится через JS -->
-        </div>
+        <div class="calendar-strip" id="calendarStrip"></div>
 
-        <!-- Блок цели (если нет цели - кнопка создания) -->
+        <!-- Цель -->
         <div id="goalContainer">
             <button class="btn btn-primary" onclick="openGoalModal()" id="createGoalBtn" style="margin-bottom: 24px;">Создать цель 🎯</button>
             
@@ -51,7 +49,7 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="goalProgressBar"></div></div>
                 <div class="goal-stats">
-                    <div><span>До цели</span><strong id="goalLeftDisplay">0 ₽</strong></div>
+                    <div><span>Осталось</span><strong id="goalLeftDisplay">0 ₽</strong></div>
                     <div><span>В день</span><strong id="goalDailyDisplay">0 ₽</strong></div>
                     <div><span>Дней</span><strong id="goalDaysDisplay">0</strong></div>
                 </div>
@@ -90,7 +88,6 @@
         <div class="article-content">
             <h1 id="articleTitle"></h1>
             <div class="article-date" id="articleDate"></div>
-            <img id="articleImage" class="article-image" style="display: none;">
             <div class="article-text" id="articleText"></div>
         </div>
     </div>
@@ -105,8 +102,8 @@
         
         <div class="calc-box">
             <div class="calc-grid">
-                <div class="calc-input-wrap"><label>Курс покупки</label><input type="number" id="calcBuy" placeholder="80.00" oninput="calcP2P()"></div>
-                <div class="calc-input-wrap"><label>Курс продажи</label><input type="number" id="calcSell" placeholder="85.00" oninput="calcP2P()"></div>
+                <div class="calc-input-wrap"><label>Курс покупки</label><input type="number" id="calcBuy" placeholder="80" oninput="calcP2P()"></div>
+                <div class="calc-input-wrap"><label>Курс продажи</label><input type="number" id="calcSell" placeholder="85" oninput="calcP2P()"></div>
             </div>
             <div class="calc-input-wrap" style="margin-bottom: 12px;">
                 <label>Сумма сделки (₽)</label>
@@ -184,34 +181,33 @@
         </div>
     </div>
 
-    <!-- МОДАЛКА: ЦЕЛЬ -->
+    <!-- МОДАЛКИ -->
     <div id="goalModal" class="modal-overlay">
         <div class="modal">
             <h3>Настройка цели</h3>
             <div class="input-row">
-                <div class="input-group"><label>Цель (₽)</label><input type="number" id="goalAmount" placeholder="100000"></div>
-                <div class="input-group"><label>Старт (₽)</label><input type="number" id="goalStart" placeholder="10000"></div>
+                <div class="input-group"><label>Цель (₽)</label><input type="number" id="goalAmount" class="input" placeholder="100000"></div>
+                <div class="input-group"><label>Старт (₽)</label><input type="number" id="goalStart" class="input" placeholder="10000"></div>
             </div>
             <div class="input-row">
-                <div class="input-group"><label>Дата</label><input type="date" id="goalDate"></div>
+                <div class="input-group"><label>Дата</label><input type="date" id="goalDate" class="input"></div>
                 <div class="input-group">
                     <label>Режим</label>
-                    <select id="goalMode" class="input" style="padding: 12px; background: var(--bg); border-radius: 12px; border: 1px solid var(--card-border); font-weight:700;">
+                    <select id="goalMode" class="input" onchange="updateGoalRateLabel()">
                         <option value="rub">В рублях</option>
                         <option value="pct">В процентах</option>
                     </select>
                 </div>
             </div>
             <div class="input-group" style="margin-bottom: 16px;">
-                <label id="goalRateLabel">План в день (₽ или %)</label>
-                <input type="number" id="goalRate" placeholder="500" step="0.1">
+                <label id="goalRateLabel">План в день (₽)</label>
+                <input type="number" id="goalRate" class="input" placeholder="500" step="0.1">
             </div>
             <button class="btn btn-primary" onclick="saveGoal()">Сохранить цель</button>
             <button class="btn btn-ghost" onclick="closeModal('goalModal')">Отмена</button>
         </div>
     </div>
 
-    <!-- МОДАЛКА: ДОБАВИТЬ БАЛАНС -->
     <div id="balanceModal" class="modal-overlay">
         <div class="modal">
             <h3>Добавить прибыль</h3>
@@ -222,7 +218,6 @@
         </div>
     </div>
 
-    <!-- МОДАЛКИ АДМИНА -->
     <div id="catModal" class="modal-overlay">
         <div class="modal">
             <h3>Новая категория</h3>
@@ -238,7 +233,7 @@
             <h3 id="modalArtTitle">Новая статья</h3>
             <input type="text" id="editTitle" class="input" placeholder="Заголовок" style="margin-bottom: 12px;">
             <textarea id="editContent" class="input" rows="6" placeholder="Текст статьи..." style="margin-bottom: 12px;"></textarea>
-            <select id="editTier" class="input" style="margin-bottom: 16px; background: #fff;">
+            <select id="editTier" class="input" style="margin-bottom: 16px;">
                 <option value="free">Доступ: Free</option>
                 <option value="pro">Доступ: PRO</option>
             </select>
@@ -293,6 +288,16 @@
                         <li>Статистика профита</li>
                     </ul>
                 </div>
+                <button class="btn btn-primary" onclick="requestPayment()">Оформить за 2550 ₽</button>
+            </div>
+            <button class="btn btn-ghost" onclick="closeModal('paywallModal')">Закрыть</button>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <script src="app.js"></script>
+</body>
+</html>      </div>
                 <button class="btn btn-primary" onclick="requestPayment()">Оформить за 2550 ₽</button>
             </div>
             <button class="btn btn-ghost" onclick="closeModal('paywallModal')">Закрыть</button>
