@@ -154,7 +154,4 @@ body { background-color: var(--bg); color: var(--txt); min-height: 100vh; overfl
 .stat-item .info { font-size: 13px; color: var(--dim); font-weight: 500; }
 .stat-item .profit { font-size: 16px; font-weight: 800; }
 .stat-item .profit.positive { color: var(--grn); }
-.stat-item .profit.negative { color: var(--red); } 13px; color: var(--dim); font-weight: 500; }
-.stat-item .profit { font-size: 16px; font-weight: 800; }
-.stat-item .profit.positive { color: var(--grn); }
 .stat-item .profit.negative { color: var(--red); }

@@ -356,13 +356,4 @@ window.saveArticle = async () => {
     await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, content, category: state.currentCategory, tier }) });
     closeModal('articleModal'); showToast('Сохранено!', 'success'); await loadData(); 
     if(isEdit) openCategory(state.currentCategory); else backToCategory();
-};tegory(state.currentCategory); 
-    else backToCategory();
 };
-
-window.deleteArticle = () => showConfirm('Удалить?', 'Действие необратимо', async () => {
-    await fetch(`${API_URL}/api/articles/${state.currentArticle.id}`, { method: 'DELETE' });
-    closeModal('articleModal'); showToast('Удалено', 'success'); await loadData(); backToCategory();
-});
-
-window.closeModal = (id) => document.getElementById(id).classList.remove('active');
