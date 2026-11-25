@@ -15,60 +15,63 @@
     <!-- ЭКРАН 1: ГЛАВНАЯ -->
     <div id="screen-home" class="screen active">
         <header class="top-bar">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div class="avatar" id="userAvatar" style="width:40px; height:40px;">U</div>
-                <h1 class="page-title" style="font-size: 24px;">VXO PLAT</h1>
+            <div class="profile-widget">
+                <div class="avatar" id="userAvatar">U</div>
             </div>
-            <button id="adminAddCatBtn" class="btn-icon" onclick="openCatModal()" style="display: none;">+</button>
+            <div class="logo-text">VXO<span>PLAT</span></div>
+            <div class="header-actions">
+                <button class="icon-btn" onclick="show('calc')">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg>
+                </button>
+            </div>
         </header>
 
-        <!-- Баннер -->
-        <div class="banner" style="background: var(--card-bg); border-radius: 28px; padding: 24px; box-shadow: var(--shadow); position: relative; overflow: hidden; margin-bottom: 20px; border: 1px solid var(--card-border);">
-            <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 8px; color: var(--primary);">База Знаний</h2>
-            <p style="font-size: 14px; color: var(--dim); font-weight: 500;">Твой путь в P2P начинается здесь.</p>
-            <div style="position: absolute; right: -10px; bottom: -10px; font-size: 80px; opacity: 0.1; transform: rotate(-15deg);">🚀</div>
+        <div class="greeting">
+            <h1>Привет, <span id="userName">Загрузка...</span></h1>
+            <p>Твой путь в P2P начинается здесь.</p>
         </div>
 
-        <!-- Верхние карточки -->
-        <div class="stats-dashboard">
-            <div class="stat-block purple">
-                <div class="stat-icon">📚</div>
-                <div class="stat-num" id="statArticlesCount">0</div>
-                <div class="stat-label">Статей</div>
+        <!-- Календарь -->
+        <div class="calendar-strip">
+            <div class="day"><span>ПН</span><div class="date">1</div></div>
+            <div class="day"><span>ВТ</span><div class="date">2</div></div>
+            <div class="day"><span>СР</span><div class="date">3</div></div>
+            <div class="day active"><span>ЧТ</span><div class="date">4<svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+            <div class="day"><span>ПТ</span><div class="date">5</div><div class="dot"></div></div>
+            <div class="day"><span>СБ</span><div class="date">6</div><div class="dot"></div></div>
+            <div class="day"><span>ВС</span><div class="date">7</div><div class="dot"></div></div>
+        </div>
+
+        <!-- Трекер цели -->
+        <div class="goal-card">
+            <div class="goal-header">
+                <div class="goal-icon">🎯</div>
+                <div>
+                    <h3>Моя цель</h3>
+                    <p>Спланируй свой профит</p>
+                </div>
             </div>
-            <div class="stat-block green" onclick="show('calc')">
-                <div class="stat-icon">🧮</div>
-                <div class="stat-num">P2P</div>
-                <div class="stat-label">Кальк</div>
+            <div class="goal-inputs">
+                <div class="input-row">
+                    <div class="input-group"><label>Цель (₽)</label><input type="number" id="goalAmount" placeholder="100000" oninput="calculateGoalUI()"></div>
+                    <div class="input-group"><label>Старт (₽)</label><input type="number" id="goalStart" placeholder="10000" oninput="calculateGoalUI()"></div>
+                </div>
+                <div class="input-row">
+                    <div class="input-group"><label>Дата (ДД.ММ.ГГГГ)</label><input type="date" id="goalDate" onchange="calculateGoalUI()"></div>
+                    <div class="input-group"><label>План в день (%)</label><input type="number" id="goalRate" placeholder="30" oninput="calculateGoalUI()"></div>
+                </div>
             </div>
-            <div class="stat-block orange" onclick="show('profile')">
-                <div class="stat-icon">👤</div>
-                <div class="stat-num">Профиль</div>
-                <div class="stat-label">Настройки</div>
+            <button class="btn btn-primary btn-sm" onclick="saveGoal()">Рассчитать и сохранить</button>
+            
+            <div id="goalResult" class="goal-result" style="display: none;">
+                <div class="res-row"><span>Дней осталось:</span> <strong id="resDays">0</strong></div>
+                <div class="res-row"><span>Нужно в день (₽):</span> <strong id="resDailyRub">0</strong></div>
+                <div class="res-row"><span>Нужно в день (%):</span> <strong id="resDailyPct">0</strong></div>
             </div>
         </div>
 
-        <div class="flex-between" style="margin-top: 30px;">
-            <h2 class="section-title">Разделы</h2>
-        </div>
-        
+        <div class="section-title" style="margin-top: 30px;">Разделы</div>
         <div class="categories-list" id="categoriesGrid"></div>
-
-        <h2 class="section-title" style="margin-top: 30px;">Ссылки</h2>
-        <div class="links-grid">
-            <div class="link-card" onclick="showToast('Площадка в разработке! 🛠', 'info')">
-                <div class="link-icon">💱</div>
-                <div class="link-info"><h4>Площадка VXO PLAT</h4><p>Ожидается в ближайшее время</p></div>
-            </div>
-            <a href="https://t.me/+DcaKm7NHJlFkMjEy" target="_blank" class="link-card">
-                <div class="link-icon">✈️</div>
-                <div class="link-info"><h4>Telegram 1</h4><p>Основной канал</p></div>
-            </a>
-            <a href="https://t.me/+YOWC4f8ZoyswNDli" target="_blank" class="link-card">
-                <div class="link-icon">✈️</div>
-                <div class="link-info"><h4>Telegram 2</h4><p>Чат обменник</p></div>
-            </a>
-        </div>
     </div>
 
     <!-- ЭКРАН 2: СПИСОК СТАТЕЙ -->
@@ -102,7 +105,12 @@
 
     <!-- ЭКРАН 4: КАЛЬКУЛЯТОР -->
     <div id="screen-calc" class="screen">
-        <h1 class="page-title" style="margin-bottom: 24px;">Калькулятор</h1>
+        <header class="top-bar">
+            <button class="back-btn" onclick="show('home')"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <h2 class="page-title" style="font-size: 20px;">Калькулятор</h2>
+            <div style="width: 40px;"></div>
+        </header>
+        
         <div class="calc-box">
             <div class="calc-grid">
                 <div class="calc-input-wrap"><label>Курс покупки</label><input type="number" id="calcBuy" placeholder="80.00" oninput="calcP2P()"></div>
@@ -129,7 +137,11 @@
 
     <!-- ЭКРАН 5: ПРОФИЛЬ -->
     <div id="screen-profile" class="screen">
-        <h1 class="page-title" style="margin-bottom: 24px;">Профиль</h1>
+        <header class="top-bar">
+            <button class="back-btn" onclick="show('home')"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <h2 class="page-title" style="font-size: 20px;">Профиль</h2>
+            <div style="width: 40px;"></div>
+        </header>
         <div id="profileContent"></div>
 
         <div id="financeSection" style="display: none;">
@@ -161,22 +173,18 @@
     <div class="floating-nav">
         <button class="nav-item active" data-target="home" onclick="show('home')">
             <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-            <span>Главная</span>
         </button>
         <button class="nav-item" data-target="calc" onclick="show('calc')">
             <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg>
-            <span>Кальк</span>
         </button>
         
         <div style="width: 60px;"></div> 
 
         <button class="nav-item" data-target="profile" onclick="show('profile')">
             <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span>Профиль</span>
         </button>
         <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;">
             <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            <span>Админ</span>
         </button>
         
         <div class="nav-center-btn" onclick="openQuickAction()">
@@ -199,22 +207,14 @@
         <div class="modal">
             <h3 id="modalArtTitle">Новая статья</h3>
             <input type="text" id="editTitle" class="input" placeholder="Заголовок" style="margin-bottom: 12px;">
-            <textarea id="editContent" class="input" rows="6" placeholder="Текст статьи..." style="margin-bottom: 16px;"></textarea>
+            <textarea id="editContent" class="input" rows="6" placeholder="Текст статьи..." style="margin-bottom: 12px;"></textarea>
+            <select id="editTier" class="input" style="margin-bottom: 16px; background: #fff;">
+                <option value="free">Доступ: Free (Бесплатно)</option>
+                <option value="pro">Доступ: PRO (По подписке)</option>
+            </select>
             <button class="btn btn-primary" onclick="saveArticle()">Сохранить</button>
             <button class="btn btn-danger" id="deleteArtBtn" onclick="deleteArticle()" style="display: none; margin-top: 10px;">Удалить</button>
             <button class="btn btn-ghost" onclick="closeModal('articleModal')">Отмена</button>
-        </div>
-    </div>
-
-    <div id="submitArticleModal" class="modal-overlay">
-        <div class="modal">
-            <h3>Предложить статью</h3>
-            <select id="subCat" class="input" style="margin-bottom: 12px;"></select>
-            <input type="text" id="subTitle" class="input" placeholder="Заголовок" style="margin-bottom: 12px;">
-            <textarea id="subContent" class="input" rows="5" placeholder="Текст..." style="margin-bottom: 12px;"></textarea>
-            <input type="number" id="subPrice" class="input" placeholder="Цена (₽), если хотите продать" style="margin-bottom: 16px;">
-            <button class="btn btn-primary" onclick="submitArticle()">На модерацию</button>
-            <button class="btn btn-ghost" onclick="closeModal('submitArticleModal')">Отмена</button>
         </div>
     </div>
 
@@ -250,11 +250,22 @@
         </div>
     </div>
 
+    <!-- Paywall -->
     <div id="paywallModal" class="modal-overlay">
         <div class="modal" style="text-align: center;">
             <div style="font-size: 50px; margin-bottom: 16px;">🔒</div>
             <h3>Доступ закрыт</h3>
-            <div id="paywallContent"></div>
+            <div id="paywallContent">
+                <div style="background:var(--bg); padding:16px; border-radius:16px; text-align:left; margin-bottom:16px;">
+                    <p style="font-weight:800; margin-bottom:10px; font-size:16px;">Для доступа к PRO-материалам оформите подписку за 30$ (2550 ₽):</p>
+                    <ul style="font-size:14px; color:var(--dim); line-height:1.6; padding-left:20px;">
+                        <li>Все мануалы и связки</li>
+                        <li>Возможность продавать статьи</li>
+                        <li>Статистика профита</li>
+                    </ul>
+                </div>
+                <button class="btn btn-primary" onclick="requestPayment()">Оформить за 2550 ₽</button>
+            </div>
             <button class="btn btn-ghost" onclick="closeModal('paywallModal')">Закрыть</button>
         </div>
     </div>
