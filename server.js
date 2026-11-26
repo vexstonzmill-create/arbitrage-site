@@ -54,7 +54,7 @@ app.post('/api/auth/telegram', async (req, res) => {
     const result = await pool.query(`
       INSERT INTO users (id, username, display_name, avatar_url, role) 
       VALUES ($1, $2, $3, $4, $5) 
-      ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, display_name = EXCLUDED.display_name 
+      ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url
       RETURNING *;
     `, [tgUser.id, tgUser.username || `user_${tgUser.id}`, tgUser.first_name || 'User', tgUser.photo_url || null, isAdmin ? 'admin' : 'user']);
     

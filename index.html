@@ -10,7 +10,7 @@
 </head>
 <body data-theme="dark">
 
-    <!-- Магическое свечение на фоне -->
+    <!-- Магическое свечение -->
     <div class="glow-bg"></div>
 
     <div id="loader">
@@ -19,21 +19,19 @@
 
     <!-- ЭКРАН 1: ГЛАВНАЯ -->
     <div id="screen-home" class="screen active">
-        <header class="top-bar">
-            <div class="profile-widget">
-                <div class="avatar" id="userAvatar">U</div>
+        
+        <!-- Шапка с баннером и аватаркой (как на примере) -->
+        <div class="profile-header">
+            <div class="banner-image"></div>
+            <div class="avatar-large" id="userAvatarLarge">U</div>
+            <div class="header-controls">
+                <button class="header-btn" onclick="toggleTheme()"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
             </div>
-            <div class="logo-text">VXO<span>PLAT</span></div>
-            <div class="header-actions">
-                <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-                </button>
-            </div>
-        </header>
+        </div>
 
-        <div class="greeting">
-            <h1>Привет, <span id="userName">Загрузка...</span></h1>
-            <p>Твой путь в P2P начинается здесь.</p>
+        <div class="user-info-block">
+            <h1 class="user-name-title" id="userName">Загрузка...</h1>
+            <p class="user-handle" id="userHandle">@vxoplat</p>
         </div>
 
         <!-- Календарь -->
@@ -81,7 +79,7 @@
         <div id="articlesList" class="articles-list"></div>
     </div>
 
-    <!-- ЭКРАН 3: ЧТЕНИЕ СТАТЬИ -->
+    <!-- ЭКРАН 3: ЧТЕНИЕ -->
     <div id="screen-article" class="screen">
         <header class="top-bar">
             <button class="back-btn" onclick="backToCategory()">
@@ -165,28 +163,32 @@
 
     <!-- НИЖНЕЕ МЕНЮ -->
     <div class="floating-nav">
-        <button class="nav-item active" data-target="home" onclick="show('home')">
-            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        </button>
-        <button class="nav-item" data-target="calc" onclick="show('calc')">
-            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg>
-        </button>
-        
+        <button class="nav-item active" data-target="home" onclick="show('home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+        <button class="nav-item" data-target="calc" onclick="show('calc')"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg></button>
         <div style="width: 60px;"></div> 
+        <button class="nav-item" data-target="profile" onclick="show('profile')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
+        <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></button>
+        <div class="nav-center-btn" onclick="openQuickAction()"><svg viewBox="0 0 24 24" stroke="#000" stroke-width="3" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    </div>
 
-        <button class="nav-item" data-target="profile" onclick="show('profile')">
-            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </button>
-        <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;">
-            <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-        </button>
-        
-        <div class="nav-center-btn" onclick="openQuickAction()">
-            <svg viewBox="0 0 24 24" stroke="#000" stroke-width="3" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <!-- МОДАЛКА: ДЕНЬ КАЛЕНДАРЯ -->
+    <div id="dayModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="dayModalTitle">День 1</h3>
+            <p style="color:var(--dim); margin-bottom:16px;">План на этот день: <strong id="dayModalTarget" style="color:var(--txt);">0 ₽</strong></p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button class="btn btn-primary" onclick="markDay(true)">✅ Выполнено (Добавить план)</button>
+                <button class="btn btn-danger" onclick="markDay(false)">❌ Провал (Ничего не добавлять)</button>
+                <div class="input-row" style="margin-top:10px;">
+                    <input type="number" id="dayCustomAmount" class="input" placeholder="Своя сумма (₽)" style="flex:1;">
+                    <button class="btn btn-ghost" style="width:auto; padding:0 20px;" onclick="addCustomDay()">+</button>
+                </div>
+            </div>
+            <button class="btn btn-ghost" onclick="closeModal('dayModal')" style="margin-top:10px;">Закрыть</button>
         </div>
     </div>
 
-    <!-- МОДАЛКИ -->
+    <!-- ОСТАЛЬНЫЕ МОДАЛКИ -->
     <div id="goalModal" class="modal-overlay">
         <div class="modal">
             <h3>Настройка цели</h3>
@@ -196,8 +198,7 @@
             </div>
             <div class="input-row">
                 <div class="input-group"><label>Дата</label><input type="date" id="goalDate" class="input"></div>
-                <div class="input-group">
-                    <label>Режим</label>
+                <div class="input-group"><label>Режим</label>
                     <select id="goalMode" class="input" onchange="updateGoalRateLabel()">
                         <option value="rub">В рублях</option>
                         <option value="pct">В процентах</option>
@@ -216,7 +217,6 @@
     <div id="balanceModal" class="modal-overlay">
         <div class="modal">
             <h3>Добавить прибыль</h3>
-            <p style="font-size:13px; color:var(--dim); margin-bottom:16px;">Сколько вы заработали сегодня?</p>
             <input type="number" id="dailyProfit" class="input" placeholder="Сумма (₽)" style="margin-bottom: 16px;">
             <button class="btn btn-primary" onclick="addBalance()">Сохранить</button>
             <button class="btn btn-ghost" onclick="closeModal('balanceModal')">Отмена</button>
@@ -283,10 +283,10 @@
     <div id="paywallModal" class="modal-overlay">
         <div class="modal" style="text-align: center;">
             <div style="font-size: 50px; margin-bottom: 16px;">🔒</div>
-            <h3>Доступ закрыт</h3>
+            <h3>PRO Доступ</h3>
             <div id="paywallContent">
                 <div style="background:var(--bg); padding:16px; border-radius:16px; text-align:left; margin-bottom:16px;">
-                    <p style="font-weight:800; margin-bottom:10px; font-size:16px;">Для доступа к PRO-материалам оформите подписку за 30$ (2550 ₽):</p>
+                    <p style="font-weight:800; margin-bottom:10px; font-size:16px;">Оформи подписку за 2550 ₽ и получи:</p>
                     <ul style="font-size:14px; color:var(--dim); line-height:1.6; padding-left:20px;">
                         <li>Все мануалы и связки</li>
                         <li>Возможность продавать статьи</li>
@@ -294,15 +294,6 @@
                     </ul>
                 </div>
                 <button class="btn btn-primary" onclick="requestPayment()">Оформить за 2550 ₽</button>
-            </div>
-            <button class="btn btn-ghost" onclick="closeModal('paywallModal')">Закрыть</button>
-        </div>
-    </div>
-
-    <div id="toastContainer" class="toast-container"></div>
-    <script src="app.js"></script>
-</body>
-</html>550 ₽</button>
             </div>
             <button class="btn btn-ghost" onclick="closeModal('paywallModal')">Закрыть</button>
         </div>

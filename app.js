@@ -1,8 +1,8 @@
 const API_URL = window.location.origin;
 let state = { user: null, categories: [], articles: [], currentCategory: null, currentArticle: null };
 let currentReqId = null;
+let currentDayPlan = 0; // Для модалки дня
 
-// Тема
 if (localStorage.getItem('theme') === 'light') document.body.setAttribute('data-theme', 'light');
 else document.body.setAttribute('data-theme', 'dark');
 
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function authUser() {
     if (!window.Telegram || !window.Telegram.WebApp.initData) {
-        state.user = { id: 6938068102, display_name: 'Админ (Браузер)', role: 'admin', is_paid: true, goal_amount: 100000, start_capital: 10000, current_balance: 15000, goal_date: '2025-01-01', goal_mode: 'rub', goal_daily_rate: 30 };
+        state.user = { id: 6938068102, display_name: 'Админ (Браузер)', username: 'admin', role: 'admin', is_paid: true, goal_amount: 100000, start_capital: 10000, current_balance: 15000, goal_date: '2025-01-01', goal_mode: 'rub', goal_daily_rate: 30 };
         updateUIForUser(); return;
     }
     try {
@@ -51,13 +51,22 @@ async function authUser() {
     } catch(e) { fallbackUser(); }
 }
 
-function fallbackUser() { state.user = { display_name: 'Гость', role: 'user', is_paid: false }; updateUIForUser(); }
+function fallbackUser() { state.user = { display_name: 'Гость', username: 'guest', role: 'user', is_paid: false }; updateUIForUser(); }
 
 function updateUIForUser() {
     if (!state.user) return;
     const name = state.user.display_name || 'User';
-    document.getElementById('userName').textContent = name.split(' ')[0];
-    document.getElementById('userAvatar').textContent = name[0].toUpperCase();
+    
+    // Аватарка в шапке
+    const avLarge = document.getElementById('userAvatarLarge');
+    if (state.user.avatar_url) {
+        avLarge.innerHTML = `<img src="${state.user.avatar_url}">`;
+    } else {
+        avLarge.textContent = name[0].toUpperCase();
+    }
+
+    document.getElementById('userName').textContent = name;
+    document.getElementById('userHandle').textContent = '@' + (state.user.username || 'user');
     
     const isAdmin = state.user.role === 'admin';
     if (isAdmin) {
@@ -77,6 +86,7 @@ function updateUIForUser() {
     }
 }
 
+// КАЛЕНДАРЬ
 function renderCalendar() {
     const strip = document.getElementById('calendarStrip');
     const today = new Date();
@@ -90,7 +100,7 @@ function renderCalendar() {
         d.setDate(startOfWeek.getDate() + i);
         const isToday = d.toDateString() === new Date().toDateString();
         strip.innerHTML += `
-            <div class="day ${isToday ? 'active' : ''}" onclick="showDayInfo(${d.getDate()}, '${d.toISOString().split('T')[0]}')">
+            <div class="day ${isToday ? 'active' : ''}" onclick="openDayModal(${d.getDate()}, '${d.toISOString().split('T')[0]}')">
                 <span>${days[i]}</span>
                 <div class="date">${d.getDate()}</div>
                 ${isToday ? '<div class="dot"></div>' : ''}
@@ -99,17 +109,57 @@ function renderCalendar() {
     }
 }
 
-window.showDayInfo = (dayNum, dateStr) => {
+// МОДАЛКА ДНЯ (Исправлена ошибка дат)
+window.openDayModal = (dayNum, dateStr) => {
     if (!state.user.goal_amount) return showToast('Сначала создайте цель', 'info');
-    const goalDate = new Date(state.user.goal_date);
-    const targetDate = new Date(dateStr);
-    const daysLeft = Math.ceil((goalDate.getTime() - targetDate.getTime()) / (1000 * 3600 * 24));
+    
+    // Корректный расчет дней без учета часовых поясов
+    const goalDate = new Date(state.user.goal_date + 'T00:00:00');
+    const targetDate = new Date(dateStr + 'T00:00:00');
+    
+    const timeDiff = goalDate.getTime() - targetDate.getTime();
+    const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
     if (daysLeft < 0) return showToast('Эта дата уже прошла', 'error');
+
     const needed = state.user.goal_amount - state.user.start_capital;
-    const dailyTarget = needed / (daysLeft || 1);
-    showToast(`${dayNum}-е число. Нужно: ${dailyTarget.toFixed(0)} ₽. Осталось дней: ${daysLeft}`, 'info');
+    // Если дней 0, ставим 1 чтобы не было деления на ноль
+    currentDayPlan = needed / (daysLeft || 1);
+
+    document.getElementById('dayModalTitle').textContent = `${dayNum}-е число`;
+    document.getElementById('dayModalTarget').textContent = `${currentDayPlan.toFixed(0)} ₽`;
+    document.getElementById('dayCustomAmount').value = '';
+    document.getElementById('dayModal').classList.add('active');
 };
 
+window.markDay = async (isDone) => {
+    if (isDone) {
+        await addToBalance(currentDayPlan);
+        showToast(`Добавлено ${currentDayPlan.toFixed(0)} ₽ в баланс!`, 'success');
+    } else {
+        showToast('День отмечен как провальный', 'info');
+    }
+    closeModal('dayModal');
+};
+
+window.addCustomDay = async () => {
+    const val = parseFloat(document.getElementById('dayCustomAmount').value);
+    if (!val) return showToast('Введите сумму', 'error');
+    await addToBalance(val);
+    showToast(`Добавлено ${val} ₽`, 'success');
+    closeModal('dayModal');
+};
+
+// Вспомогательная функция добавления баланса (используется в нескольких местах)
+async function addToBalance(amount) {
+    if (!state.user.id) return;
+    await fetch(`${API_URL}/api/user/update-balance`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, amount }) });
+    state.user.current_balance = (state.user.current_balance || 0) + amount;
+    updateGoalUI();
+    loadTransactions(); // Обновляем историю транзакций
+}
+
+// ЦЕЛИ
 window.openGoalModal = () => {
     document.getElementById('goalAmount').value = state.user.goal_amount || '';
     document.getElementById('goalStart').value = state.user.start_capital || '';
@@ -152,8 +202,9 @@ function updateGoalUI() {
     const left = target - current;
     document.getElementById('goalLeftDisplay').textContent = left > 0 ? `${left.toLocaleString('ru-RU')} ₽` : 'Достигнута!';
 
-    const goalDate = new Date(state.user.goal_date);
+    const goalDate = new Date(state.user.goal_date + 'T00:00:00');
     const today = new Date();
+    today.setHours(0,0,0,0);
     const daysLeft = Math.max(0, Math.ceil((goalDate.getTime() - today.getTime()) / (1000 * 3600 * 24)));
     document.getElementById('goalDaysDisplay').textContent = daysLeft;
 
@@ -166,9 +217,8 @@ window.openBalanceModal = () => { document.getElementById('dailyProfit').value =
 window.addBalance = async () => {
     const amount = parseFloat(document.getElementById('dailyProfit').value);
     if (!amount) return showToast('Введите сумму', 'error');
-    await fetch(`${API_URL}/api/user/update-balance`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, amount }) });
-    state.user.current_balance = (state.user.current_balance || 0) + amount;
-    closeModal('balanceModal'); showToast('Баланс обновлен!', 'success'); updateGoalUI();
+    await addToBalance(amount);
+    closeModal('balanceModal'); showToast('Баланс обновлен!', 'success');
 };
 
 async function loadData() {
@@ -224,9 +274,12 @@ window.saveTransaction = async () => {
     if (!amount || !desc) return showToast('Заполните поля', 'error');
     await fetch(`${API_URL}/api/transactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, type, amount, description: desc }) });
     closeModal('transModal'); showToast('Добавлено', 'success'); loadTransactions();
+    // Если доход, добавляем в баланс
+    if (type === 'income') { await addToBalance(amount); }
 };
 
 async function loadTransactions() {
+    if (!state.user.id) return;
     const list = document.getElementById('transactionsList');
     const res = await fetch(`${API_URL}/api/transactions/${state.user.id}`); const data = await res.json();
     let inc = 0, exp = 0;
@@ -276,14 +329,16 @@ window.requestPayment = async () => {
     showToast('Заявка отправлена!', 'success'); closeModal('paywallModal');
 };
 
+// АДМИН
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
 window.saveCategory = async () => {
     const name = document.getElementById('newCatName').value; const icon = document.getElementById('newCatIcon').value || '📄';
     if(!name) return showToast('Введите название', 'error');
     try {
-        await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
+        const res = await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
+        if(!res.ok) throw new Error();
         closeModal('catModal'); showToast('Категория добавлена', 'success'); await loadData();
-    } catch(e) { showToast('Ошибка сервера', 'error'); }
+    } catch(e) { showToast('Ошибка или категория уже есть', 'error'); }
 };
 
 window.openArticleModal = (isEdit = false) => {
@@ -394,6 +449,7 @@ window.moderateArticle = (articleId, action) => showConfirm('Модерация'
     showToast(action === 'approve' ? 'Опубликовано!' : 'Удалено', 'success'); loadAdminTab('moderation');
 });
 
+// КАЛЬКУЛЯТОР (Исправлено сохранение в статистику)
 window.calcP2P = () => {
     const buy = parseFloat(document.getElementById('calcBuy').value) || 0;
     const sell = parseFloat(document.getElementById('calcSell').value) || 0;
@@ -420,10 +476,31 @@ window.calcP2P = () => {
     resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
     resProfit.textContent = `${profit.toFixed(2)} ₽`;
     resProfit.style.color = profit >= 0 ? 'var(--grn)' : 'var(--red)';
+    
+    // Сохраняем вычисленный профит, чтобы потом отправить
+    window._lastCalculatedProfit = profit;
 };
 
 window.resetCalc = () => {
     ['calcBuy','calcSell','calcAmount','calcBuyFee','calcSellFee'].forEach(id=>document.getElementById(id).value='');
     calcP2P();
 };
-window.saveCalc = () => showToast('Расчет сохранен!', 'success');
+
+window.saveCalc = async () => {
+    if (!window._lastCalculatedProfit || window._lastCalculatedProfit <= 0) {
+        return showToast('Нет прибыли для сохранения', 'error');
+    }
+    
+    // Отправляем как транзакцию "Доход"
+    await fetch(`${API_URL}/api/transactions`, { 
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ userId: state.user.id, type: 'income', amount: window._lastCalculatedProfit, description: 'P2P Сделка (Калькулятор)' }) 
+    });
+    
+    // Добавляем в баланс цели
+    await addToBalance(window._lastCalculatedProfit);
+    
+    showToast('Профит добавлен в статистику!', 'success');
+    window._lastCalculatedProfit = 0;
+    resetCalc();
+};
