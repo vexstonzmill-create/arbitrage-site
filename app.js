@@ -64,11 +64,11 @@ function updateUIForUser() {
     
     avLarge.replaceChildren();
     if (state.user.avatar_url) {
-        const avatarImg = document.createElement('img');
-        avatarImg.src = state.user.avatar_url;
-        avatarImg.alt = 'Аватар профиля';
-        avatarImg.onerror = () => { avLarge.textContent = (name[0] || 'U').toUpperCase(); };
-        avLarge.appendChild(avatarImg);
+        const profileImg = document.createElement('img');
+        profileImg.src = state.user.avatar_url;
+        profileImg.alt = 'Аватар профиля';
+        profileImg.onerror = () => { avLarge.textContent = (name[0] || 'U').toUpperCase(); };
+        avLarge.appendChild(profileImg);
     } else avLarge.textContent = (name[0] || 'U').toUpperCase();
     if (state.user.banner_url) banner.style.backgroundImage = `url(${state.user.banner_url})`; else banner.style.backgroundImage = `url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop')`;
 
@@ -108,54 +108,52 @@ async function previewImage(input, previewId) {
     if (!file) return;
     if (!file.type.startsWith('image/')) { showToast('Выберите изображение', 'error'); input.value = ''; return; }
     try {
-        const result = await resizeImageData(file, previewId === 'avatarPreview' ? 720 : 1800);
-        const preview = document.getElementById(previewId);
-        preview.replaceChildren();
-        const image = document.createElement('img'); image.src = result; image.alt = 'Предпросмотр';
-        preview.appendChild(image); preview.style.display = 'flex';
-        if (previewId === 'avatarPreview') tempAvatarBase64 = result;
-        if (previewId === 'bannerPreview') tempBannerBase64 = result;
-    } catch (e) { console.error(e); showToast('Ошибка обработки изображения', 'error'); }
+        const dataUrl = await compressProfileImage(file, previewId === 'avatarPreview' ? 720 : 1800);
+        const box = document.getElementById(previewId);
+        box.replaceChildren();
+        const img = document.createElement('img'); img.src = dataUrl; img.alt = 'Предпросмотр';
+        box.appendChild(img); box.style.display = 'flex';
+        if (previewId === 'avatarPreview') tempAvatarBase64 = dataUrl;
+        if (previewId === 'bannerPreview') tempBannerBase64 = dataUrl;
+    } catch (err) { console.error(err); showToast('Не удалось обработать изображение', 'error'); }
 }
-function resizeImageData(file, maxEdge) {
+function compressProfileImage(file, maxSide) {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader(); reader.onerror = reject;
+        const reader = new FileReader(); reader.onerror = () => reject(new Error('File read failed'));
         reader.onload = () => {
-            const img = new Image(); img.onerror = reject;
-            img.onload = () => {
-                const ratio = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+            const image = new Image(); image.onerror = () => reject(new Error('Image decode failed'));
+            image.onload = () => {
+                const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
                 const canvas = document.createElement('canvas');
-                canvas.width = Math.max(1, Math.round(img.naturalWidth * ratio));
-                canvas.height = Math.max(1, Math.round(img.naturalHeight * ratio));
+                canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+                canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
                 const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff';
-                ctx.fillRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height);
-                let quality = .82, data = canvas.toDataURL('image/jpeg',quality);
-                while (data.length > 1500000 && quality > .45) { quality -= .07; data = canvas.toDataURL('image/jpeg',quality); }
-                if (data.length > 1900000) return reject(new Error('Image too large'));
+                ctx.fillRect(0,0,canvas.width,canvas.height); ctx.drawImage(image,0,0,canvas.width,canvas.height);
+                let quality = .84, data = canvas.toDataURL('image/jpeg', quality);
+                while (data.length > 1300000 && quality > .48) { quality -= .08; data = canvas.toDataURL('image/jpeg', quality); }
+                if (data.length > 1800000) return reject(new Error('Image too large'));
                 resolve(data);
-            }; img.src = reader.result;
+            }; image.src = reader.result;
         }; reader.readAsDataURL(file);
     });
 }
-
 window.saveProfileSettings = async () => {
     const newName = document.getElementById('setName').value.trim();
     if (!newName) return showToast('Введите ник', 'error');
     try {
         const payload = { userId: state.user.id, display_name: newName };
-        // Send image fields only when changed; backend preserves current DB values otherwise.
         if (tempAvatarBase64 && tempAvatarBase64 !== state.user.avatar_url) payload.avatar_url = tempAvatarBase64;
         if (tempBannerBase64 && tempBannerBase64 !== state.user.banner_url) payload.banner_url = tempBannerBase64;
         const response = await fetch(`${API_URL}/api/user/update-profile`, {
-            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
-        const result = await response.json().catch(()=>({}));
-        if (!response.ok || result.success !== true) throw new Error(result.error || 'Save failed');
-        state.user.display_name = newName;
-        if (payload.avatar_url) state.user.avatar_url = payload.avatar_url;
-        if (payload.banner_url) state.user.banner_url = payload.banner_url;
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success !== true) throw new Error(result.error || `HTTP ${response.status}`);
+        state.user.display_name = result.user && result.user.display_name || newName;
+        if (result.user && result.user.avatar_url !== undefined) state.user.avatar_url = result.user.avatar_url;
+        if (result.user && result.user.banner_url !== undefined) state.user.banner_url = result.user.banner_url;
         closeModal('settingsModal'); showToast('Профиль сохранен', 'success'); updateUIForUser();
-    } catch (e) { console.error(e); showToast('Не удалось сохранить профиль. Проверь интернет.', 'error'); }
+    } catch (err) { console.error('Profile save failed:', err); showToast('Не сохранилось: проверь сервер/интернет', 'error'); }
 };
 
 // КАЛЕНДАРЬ И ЦЕЛИ
@@ -251,19 +249,36 @@ window.addBalance = async () => {
 
 async function loadData() {
     try {
-        const res = await fetch(`${API_URL}/api/data`); const data = await res.json();
-        state.categories = data.categories || []; state.articles = data.articles || []; renderCategories();
-    } catch(e) { console.error('Load error', e); }
+        const res = await fetch(`${API_URL}/api/data`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`API /api/data returned ${res.status}`);
+        const data = await res.json();
+        state.categories = Array.isArray(data.categories) ? data.categories : [];
+        state.articles = Array.isArray(data.articles) ? data.articles : [];
+        renderCategories();
+    } catch(e) {
+        console.error('Load categories/articles failed:', e);
+        const grid = document.getElementById('categoriesGrid');
+        if (grid) grid.innerHTML = '<div class="empty-state">Не удалось загрузить разделы. Проверь сервер.</div>';
+    }
 }
 
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
     if (!grid) return;
-    grid.innerHTML = state.categories.map(cat => {
-        const catName = String(cat.name || '');
-        const count = state.articles.filter(a => a.category === catName).length;
-        return `<div class="cat-item" onclick="openCategory(${JSON.stringify(catName).replace(/</g,'\\u003c')})"><div class="icon">${cat.icon || '📁'}</div><div class="info"><h4>${catName}</h4><span>${count} статей</span></div><div class="arrow">›</div></div>`;
-    }).join('');
+    grid.replaceChildren();
+    state.categories.forEach(cat => {
+        const name = String(cat.name || '');
+        const count = state.articles.filter(a => a.category === name).length;
+        const item = document.createElement('div');
+        item.className = 'cat-item';
+        item.addEventListener('click', () => window.openCategory(name));
+        item.innerHTML = '<div class="icon"></div><div class="info"><h4></h4><span></span></div><div class="arrow">›</div>';
+        item.querySelector('.icon').textContent = cat.icon || '📁';
+        item.querySelector('h4').textContent = name;
+        item.querySelector('.info span').textContent = `${count} статей`;
+        grid.appendChild(item);
+    });
+    if (!state.categories.length) grid.innerHTML = '<div class="empty-state">Разделов пока нет</div>';
 }
 
 window.openCategory = (catName) => {

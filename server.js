@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '12mb' }));
 app.use(express.static(__dirname));
 
 const CONFIG = {
@@ -72,15 +72,15 @@ app.post('/api/auth/telegram', async (req, res) => {
 app.post('/api/user/update-profile', async (req, res) => {
   const { userId, display_name, avatar_url, banner_url } = req.body;
   try {
-    // Omitted image fields mean "keep the current stored image", not erase it.
-    await pool.query(`UPDATE users SET
+    const saved = await pool.query(`UPDATE users SET
       display_name = COALESCE($1, display_name),
       avatar_url = COALESCE($2, avatar_url),
       banner_url = COALESCE($3, banner_url)
-      WHERE id = $4`,
+      WHERE id = $4 RETURNING id, display_name, avatar_url, banner_url`,
       [display_name || null, avatar_url || null, banner_url || null, userId]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    if (!saved.rowCount) return res.status(404).json({ success: false, error: 'Пользователь не найден' });
+    res.json({ success: true, user: saved.rows[0] });
+  } catch (e) { console.error('Profile update:', e.message); res.status(500).json({ success: false, error: e.message }); }
 });
 
 app.post('/api/user/goal', async (req, res) => {
@@ -105,7 +105,7 @@ app.get('/api/data', async (req, res) => {
     const cats = await pool.query('SELECT * FROM categories ORDER BY id ASC');
     const arts = await pool.query("SELECT * FROM articles WHERE status = 'published' ORDER BY updated_at DESC");
     res.json({ categories: cats.rows, articles: arts.rows });
-  } catch (e) { res.status(500).json({ error: 'Error' }); }
+  } catch (e) { console.error('GET /api/data failed:', e.message); res.status(500).json({ error: 'Не удалось загрузить разделы и статьи' }); }
 });
 
 app.post('/api/articles', async (req, res) => {
