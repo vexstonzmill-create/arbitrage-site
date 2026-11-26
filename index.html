@@ -8,9 +8,14 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
-<body>
+<body data-theme="dark">
 
-    <div id="loader"><div class="spinner"></div></div>
+    <!-- Магическое свечение на фоне -->
+    <div class="glow-bg"></div>
+
+    <div id="loader">
+        <div class="loader-bar"><div class="loader-fill"></div></div>
+    </div>
 
     <!-- ЭКРАН 1: ГЛАВНАЯ -->
     <div id="screen-home" class="screen active">
@@ -20,8 +25,8 @@
             </div>
             <div class="logo-text">VXO<span>PLAT</span></div>
             <div class="header-actions">
-                <button class="icon-btn" onclick="show('calc')">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg>
+                <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
                 </button>
             </div>
         </header>
@@ -40,7 +45,7 @@
             
             <div class="goal-card" id="goalCard" style="display: none;">
                 <div class="goal-header">
-                    <div class="goal-icon">🎯</div>
+                    <div class="goal-icon">🔥</div>
                     <div style="flex:1;">
                         <h3>Цель: <span id="goalTargetDisplay">0</span> ₽</h3>
                         <p>Прогресс: <span id="goalProgressDisplay">0</span> ₽</p>
@@ -119,7 +124,7 @@
             <div class="res-row-big"><span>Прибыль:</span> <strong id="resProfit" style="color: var(--grn);">0 ₽</strong></div>
         </div>
         <div style="display: flex; gap: 12px; margin-top: 24px;">
-            <button class="btn btn-ghost" onclick="resetCalc()" style="flex: 1; border: 1px solid var(--card-border);">Сброс</button>
+            <button class="btn btn-ghost" onclick="resetCalc()" style="flex: 1;">Сброс</button>
             <button class="btn btn-primary" onclick="saveCalc()" style="flex: 2;">В статистику</button>
         </div>
     </div>
@@ -177,7 +182,7 @@
         </button>
         
         <div class="nav-center-btn" onclick="openQuickAction()">
-            <svg viewBox="0 0 24 24" stroke="#fff" stroke-width="3" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg viewBox="0 0 24 24" stroke="#000" stroke-width="3" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </div>
     </div>
 
@@ -297,8 +302,7 @@
     <div id="toastContainer" class="toast-container"></div>
     <script src="app.js"></script>
 </body>
-</html>      </div>
-                <button class="btn btn-primary" onclick="requestPayment()">Оформить за 2550 ₽</button>
+</html>550 ₽</button>
             </div>
             <button class="btn btn-ghost" onclick="closeModal('paywallModal')">Закрыть</button>
         </div>
