@@ -96,36 +96,70 @@ window.openSettingsModal = () => {
     document.getElementById('settingsModal').classList.add('active');
 };
 
-function previewImage(input, previewId) {
-    if (input.files && input.files[0]) {
+async function previewImage(input, previewId) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Выберите изображение', 'error'); input.value = ''; return; }
+    try {
+        const dataUrl = await compressImageForUpload(file, previewId === 'avatarPreview' ? 640 : 1600);
+        const preview = document.getElementById(previewId);
+        preview.replaceChildren();
+        const img = document.createElement('img'); img.src = dataUrl; img.alt = 'Предпросмотр';
+        preview.appendChild(img); preview.style.display = 'flex';
+        if (previewId === 'avatarPreview') tempAvatarBase64 = dataUrl;
+        if (previewId === 'bannerPreview') tempBannerBase64 = dataUrl;
+    } catch (error) { console.error(error); showToast('Не удалось обработать изображение', 'error'); }
+}
+function compressImageForUpload(file, maxSide) {
+    return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = function(e) {
-            const preview = document.getElementById(previewId);
-            preview.innerHTML = `<img src="${e.target.result}">`;
-            preview.style.display = 'flex';
-            if (previewId === 'avatarPreview') tempAvatarBase64 = e.target.result;
-            if (previewId === 'bannerPreview') tempBannerBase64 = e.target.result;
-        }
-        reader.readAsDataURL(input.files[0]);
-    }
+        reader.onerror = () => reject(new Error('File read error'));
+        reader.onload = () => {
+            const image = new Image();
+            image.onerror = () => reject(new Error('Image decode error'));
+            image.onload = () => {
+                const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+                canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                let quality = .84, data = canvas.toDataURL('image/jpeg', quality);
+                while (data.length > 1300000 && quality > .48) { quality -= .08; data = canvas.toDataURL('image/jpeg', quality); }
+                if (data.length > 1700000) return reject(new Error('Image too large'));
+                resolve(data);
+            };
+            image.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 window.saveProfileSettings = async () => {
-    const newName = document.getElementById('setName').value;
+    const newName = document.getElementById('setName').value.trim();
     if (!newName) return showToast('Введите ник', 'error');
-    
-    await fetch(`${API_URL}/api/user/update-profile`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: state.user.id, display_name: newName, avatar_url: tempAvatarBase64, banner_url: tempBannerBase64 })
-    });
-    
-    state.user.display_name = newName;
-    state.user.avatar_url = tempAvatarBase64;
-    state.user.banner_url = tempBannerBase64;
-    
-    closeModal('settingsModal');
-    showToast('Профиль обновлен!', 'success');
-    updateUIForUser();
+    try {
+        const response = await fetch(`${API_URL}/api/user/update-profile`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: state.user.id, display_name: newName,
+                avatar_url: tempAvatarBase64 ?? state.user.avatar_url ?? null,
+                banner_url: tempBannerBase64 ?? state.user.banner_url ?? null
+            })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success !== true) throw new Error(result.error || 'Save failed');
+        state.user.display_name = newName;
+        state.user.avatar_url = tempAvatarBase64 ?? state.user.avatar_url ?? null;
+        state.user.banner_url = tempBannerBase64 ?? state.user.banner_url ?? null;
+        closeModal('settingsModal');
+        showToast('Профиль и изображения сохранены', 'success');
+        updateUIForUser();
+    } catch (error) {
+        console.error('Profile save error:', error);
+        showToast('Не удалось сохранить. Проверьте соединение/размер фото.', 'error');
+    }
 };
 
 // КАЛЕНДАРЬ И ЦЕЛИ
@@ -305,6 +339,10 @@ async function renderProfile() {
     `;
 }
 
+window.goWallet = () => {
+    show('profile');
+    setTimeout(() => document.getElementById('financeSection')?.scrollIntoView({behavior:'smooth',block:'start'}), 90);
+};
 window.openQuickAction = () => { if (state.user.role === 'admin') { openArticleModal(); } else { showPaywall(); } };
 window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 window.showPaywall = () => document.getElementById('paywallModal').classList.add('active');

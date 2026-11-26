@@ -182,3 +182,15 @@ body[data-theme="light"] .glow-bg { opacity: 0.3; }
 .stat-item .profit { font-size: 16px; font-weight: 800; }
 .stat-item .profit.positive { color: var(--grn); }
 .stat-item .profit.negative { color: var(--red); }
+/* VXO glass capsule bottom navigation */
+.nav-container{bottom:calc(18px + env(safe-area-inset-bottom,0px));width:min(calc(100% - 28px),420px);gap:10px}
+.nav-pill{min-height:68px;padding:7px 10px;gap:2px;background:rgba(250,250,250,.88);border:1px solid rgba(255,255,255,.88);box-shadow:0 12px 38px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.95);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5)}
+body[data-theme="dark"] .nav-pill{background:rgba(30,30,34,.88);border-color:rgba(255,255,255,.08);box-shadow:0 12px 38px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.05)}
+.nav-item{height:52px;min-width:42px;border-radius:28px;color:#929296}
+.nav-item svg{width:23px;height:23px;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round}
+.nav-item.active{background:rgba(30,30,34,.08);color:#171719;box-shadow:none}
+body[data-theme="dark"] .nav-item.active{background:rgba(255,255,255,.09);color:#fff}
+.nav-action-btn{width:68px;height:68px;background:rgba(250,250,250,.9);color:#929296;border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 38px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.95);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.nav-action-btn svg{width:29px;height:29px;stroke:currentColor}
+body[data-theme="dark"] .nav-action-btn{background:rgba(30,30,34,.9);color:#c5c5c9;border-color:rgba(255,255,255,.08);box-shadow:0 12px 38px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.05)}
+@media(max-width:360px){.nav-container{width:calc(100% - 20px);gap:7px}.nav-pill{padding:6px;min-height:62px}.nav-item{height:48px;min-width:34px}.nav-action-btn{width:62px;height:62px}}
