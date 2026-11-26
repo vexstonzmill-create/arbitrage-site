@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
 const CONFIG = {
@@ -72,8 +72,13 @@ app.post('/api/auth/telegram', async (req, res) => {
 app.post('/api/user/update-profile', async (req, res) => {
   const { userId, display_name, avatar_url, banner_url } = req.body;
   try {
-    await pool.query('UPDATE users SET display_name = $1, avatar_url = $2, banner_url = $3 WHERE id = $4', 
-      [display_name, avatar_url, banner_url, userId]);
+    // Omitted image fields mean "keep the current stored image", not erase it.
+    await pool.query(`UPDATE users SET
+      display_name = COALESCE($1, display_name),
+      avatar_url = COALESCE($2, avatar_url),
+      banner_url = COALESCE($3, banner_url)
+      WHERE id = $4`,
+      [display_name || null, avatar_url || null, banner_url || null, userId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

@@ -62,7 +62,14 @@ function updateUIForUser() {
     const avLarge = document.getElementById('userAvatarLarge');
     const banner = document.getElementById('userBanner');
     
-    if (state.user.avatar_url) avLarge.innerHTML = `<img src="${state.user.avatar_url}">`; else avLarge.textContent = name[0].toUpperCase();
+    avLarge.replaceChildren();
+    if (state.user.avatar_url) {
+        const avatarImg = document.createElement('img');
+        avatarImg.src = state.user.avatar_url;
+        avatarImg.alt = 'Аватар профиля';
+        avatarImg.onerror = () => { avLarge.textContent = (name[0] || 'U').toUpperCase(); };
+        avLarge.appendChild(avatarImg);
+    } else avLarge.textContent = (name[0] || 'U').toUpperCase();
     if (state.user.banner_url) banner.style.backgroundImage = `url(${state.user.banner_url})`; else banner.style.backgroundImage = `url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop')`;
 
     document.getElementById('userName').textContent = name;
@@ -101,38 +108,33 @@ async function previewImage(input, previewId) {
     if (!file) return;
     if (!file.type.startsWith('image/')) { showToast('Выберите изображение', 'error'); input.value = ''; return; }
     try {
-        const dataUrl = await compressImageForUpload(file, previewId === 'avatarPreview' ? 640 : 1600);
+        const result = await resizeImageData(file, previewId === 'avatarPreview' ? 720 : 1800);
         const preview = document.getElementById(previewId);
         preview.replaceChildren();
-        const img = document.createElement('img'); img.src = dataUrl; img.alt = 'Предпросмотр';
-        preview.appendChild(img); preview.style.display = 'flex';
-        if (previewId === 'avatarPreview') tempAvatarBase64 = dataUrl;
-        if (previewId === 'bannerPreview') tempBannerBase64 = dataUrl;
-    } catch (error) { console.error(error); showToast('Не удалось обработать изображение', 'error'); }
+        const image = document.createElement('img'); image.src = result; image.alt = 'Предпросмотр';
+        preview.appendChild(image); preview.style.display = 'flex';
+        if (previewId === 'avatarPreview') tempAvatarBase64 = result;
+        if (previewId === 'bannerPreview') tempBannerBase64 = result;
+    } catch (e) { console.error(e); showToast('Ошибка обработки изображения', 'error'); }
 }
-function compressImageForUpload(file, maxSide) {
+function resizeImageData(file, maxEdge) {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error('File read error'));
+        const reader = new FileReader(); reader.onerror = reject;
         reader.onload = () => {
-            const image = new Image();
-            image.onerror = () => reject(new Error('Image decode error'));
-            image.onload = () => {
-                const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+            const img = new Image(); img.onerror = reject;
+            img.onload = () => {
+                const ratio = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
                 const canvas = document.createElement('canvas');
-                canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-                canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-                let quality = .84, data = canvas.toDataURL('image/jpeg', quality);
-                while (data.length > 1300000 && quality > .48) { quality -= .08; data = canvas.toDataURL('image/jpeg', quality); }
-                if (data.length > 1700000) return reject(new Error('Image too large'));
+                canvas.width = Math.max(1, Math.round(img.naturalWidth * ratio));
+                canvas.height = Math.max(1, Math.round(img.naturalHeight * ratio));
+                const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff';
+                ctx.fillRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height);
+                let quality = .82, data = canvas.toDataURL('image/jpeg',quality);
+                while (data.length > 1500000 && quality > .45) { quality -= .07; data = canvas.toDataURL('image/jpeg',quality); }
+                if (data.length > 1900000) return reject(new Error('Image too large'));
                 resolve(data);
-            };
-            image.src = reader.result;
-        };
-        reader.readAsDataURL(file);
+            }; img.src = reader.result;
+        }; reader.readAsDataURL(file);
     });
 }
 
@@ -140,26 +142,20 @@ window.saveProfileSettings = async () => {
     const newName = document.getElementById('setName').value.trim();
     if (!newName) return showToast('Введите ник', 'error');
     try {
+        const payload = { userId: state.user.id, display_name: newName };
+        // Send image fields only when changed; backend preserves current DB values otherwise.
+        if (tempAvatarBase64 && tempAvatarBase64 !== state.user.avatar_url) payload.avatar_url = tempAvatarBase64;
+        if (tempBannerBase64 && tempBannerBase64 !== state.user.banner_url) payload.banner_url = tempBannerBase64;
         const response = await fetch(`${API_URL}/api/user/update-profile`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: state.user.id, display_name: newName,
-                avatar_url: tempAvatarBase64 ?? state.user.avatar_url ?? null,
-                banner_url: tempBannerBase64 ?? state.user.banner_url ?? null
-            })
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
         });
-        const result = await response.json().catch(() => ({}));
+        const result = await response.json().catch(()=>({}));
         if (!response.ok || result.success !== true) throw new Error(result.error || 'Save failed');
         state.user.display_name = newName;
-        state.user.avatar_url = tempAvatarBase64 ?? state.user.avatar_url ?? null;
-        state.user.banner_url = tempBannerBase64 ?? state.user.banner_url ?? null;
-        closeModal('settingsModal');
-        showToast('Профиль и изображения сохранены', 'success');
-        updateUIForUser();
-    } catch (error) {
-        console.error('Profile save error:', error);
-        showToast('Не удалось сохранить. Проверьте соединение/размер фото.', 'error');
-    }
+        if (payload.avatar_url) state.user.avatar_url = payload.avatar_url;
+        if (payload.banner_url) state.user.banner_url = payload.banner_url;
+        closeModal('settingsModal'); showToast('Профиль сохранен', 'success'); updateUIForUser();
+    } catch (e) { console.error(e); showToast('Не удалось сохранить профиль. Проверь интернет.', 'error'); }
 };
 
 // КАЛЕНДАРЬ И ЦЕЛИ
@@ -262,9 +258,11 @@ async function loadData() {
 
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
+    if (!grid) return;
     grid.innerHTML = state.categories.map(cat => {
-        const count = state.articles.filter(a => a.category === cat.name).length;
-        return `<div class="cat-item" onclick="openCategory('${cat.name}')"><div class="icon">${cat.icon}</div><div class="info"><h4>${cat.name}</h4><span>${count} статей</span></div><div class="arrow">›</div></div>`;
+        const catName = String(cat.name || '');
+        const count = state.articles.filter(a => a.category === catName).length;
+        return `<div class="cat-item" onclick="openCategory(${JSON.stringify(catName).replace(/</g,'\\u003c')})"><div class="icon">${cat.icon || '📁'}</div><div class="info"><h4>${catName}</h4><span>${count} статей</span></div><div class="arrow">›</div></div>`;
     }).join('');
 }
 
@@ -339,10 +337,6 @@ async function renderProfile() {
     `;
 }
 
-window.goWallet = () => {
-    show('profile');
-    setTimeout(() => document.getElementById('financeSection')?.scrollIntoView({behavior:'smooth',block:'start'}), 90);
-};
 window.openQuickAction = () => { if (state.user.role === 'admin') { openArticleModal(); } else { showPaywall(); } };
 window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 window.showPaywall = () => document.getElementById('paywallModal').classList.add('active');
