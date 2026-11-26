@@ -18,7 +18,11 @@ const pool = new Pool({ connectionString: CONFIG.DATABASE_URL, ssl: { rejectUnau
 
 async function initDB() {
   try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false, is_blocked BOOLEAN DEFAULT false, goal_amount NUMERIC DEFAULT 0, start_capital NUMERIC DEFAULT 0, current_balance NUMERIC DEFAULT 0, goal_date DATE, goal_daily_rate NUMERIC DEFAULT 0, goal_mode TEXT DEFAULT 'rub');`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, banner_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false, is_blocked BOOLEAN DEFAULT false, goal_amount NUMERIC DEFAULT 0, start_capital NUMERIC DEFAULT 0, current_balance NUMERIC DEFAULT 0, goal_date DATE, goal_daily_rate NUMERIC DEFAULT 0, goal_mode TEXT DEFAULT 'rub');`);
+    
+    // Проверяем, есть ли колонка banner_url (если база создана раньше)
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_url TEXT;`);
+
     await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT);`);
     await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, author_id BIGINT, price NUMERIC DEFAULT 0, status TEXT DEFAULT 'published', tier TEXT DEFAULT 'free', updated_at TIMESTAMPTZ DEFAULT now());`);
     await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', requisites TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
@@ -54,13 +58,23 @@ app.post('/api/auth/telegram', async (req, res) => {
     const result = await pool.query(`
       INSERT INTO users (id, username, display_name, avatar_url, role) 
       VALUES ($1, $2, $3, $4, $5) 
-      ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url
+      ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, display_name = EXCLUDED.display_name 
       RETURNING *;
     `, [tgUser.id, tgUser.username || `user_${tgUser.id}`, tgUser.first_name || 'User', tgUser.photo_url || null, isAdmin ? 'admin' : 'user']);
     
     const user = result.rows[0];
     if (user.is_blocked) return res.status(403).json({ error: 'Аккаунт заблокирован' });
     res.json({ token: 'token_' + tgUser.id, user });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Новый роут для обновления профиля
+app.post('/api/user/update-profile', async (req, res) => {
+  const { userId, display_name, avatar_url, banner_url } = req.body;
+  try {
+    await pool.query('UPDATE users SET display_name = $1, avatar_url = $2, banner_url = $3 WHERE id = $4', 
+      [display_name, avatar_url, banner_url, userId]);
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -128,20 +142,6 @@ app.post('/api/payment-request', async (req, res) => {
     const check = await pool.query("SELECT * FROM payment_requests WHERE user_id = $1 AND status IN ('pending', 'requisites_sent')", [userId]);
     if (check.rows.length > 0) return res.json({ success: true });
     await pool.query("INSERT INTO payment_requests (user_id, status) VALUES ($1, 'pending')", [userId]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: 'Error' }); }
-});
-
-app.get('/api/user/payment-status/:userId', async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM payment_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [req.params.userId]);
-    res.json({ request: result.rows[0] || null });
-  } catch (e) { res.status(500).json({ error: 'Error' }); }
-});
-
-app.post('/api/user/payment-paid/:requestId', async (req, res) => {
-  try {
-    await pool.query("UPDATE payment_requests SET status = 'paid' WHERE id = $1", [req.params.requestId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });

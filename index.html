@@ -10,7 +10,6 @@
 </head>
 <body data-theme="dark">
 
-    <!-- Магическое свечение -->
     <div class="glow-bg"></div>
 
     <div id="loader">
@@ -19,10 +18,8 @@
 
     <!-- ЭКРАН 1: ГЛАВНАЯ -->
     <div id="screen-home" class="screen active">
-        
-        <!-- Шапка с баннером и аватаркой (как на примере) -->
         <div class="profile-header">
-            <div class="banner-image"></div>
+            <div class="banner-image" id="userBanner"></div>
             <div class="avatar-large" id="userAvatarLarge">U</div>
             <div class="header-controls">
                 <button class="header-btn" onclick="toggleTheme()"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
@@ -34,13 +31,10 @@
             <p class="user-handle" id="userHandle">@vxoplat</p>
         </div>
 
-        <!-- Календарь -->
         <div class="calendar-strip" id="calendarStrip"></div>
 
-        <!-- Цель -->
         <div id="goalContainer">
             <button class="btn btn-primary" onclick="openGoalModal()" id="createGoalBtn" style="margin-bottom: 24px;">Создать цель 🎯</button>
-            
             <div class="goal-card" id="goalCard" style="display: none;">
                 <div class="goal-header">
                     <div class="goal-icon">🔥</div>
@@ -70,9 +64,7 @@
     <!-- ЭКРАН 2: СПИСОК СТАТЕЙ -->
     <div id="screen-category" class="screen">
         <header class="top-bar">
-            <button class="back-btn" onclick="show('home')">
-                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
+            <button class="back-btn" onclick="show('home')"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
             <h2 id="categoryTitle" class="page-title" style="font-size: 20px;">Категория</h2>
             <button id="adminAddArtBtn" class="btn-icon" onclick="openArticleModal()" style="display: none;">+</button>
         </header>
@@ -82,9 +74,7 @@
     <!-- ЭКРАН 3: ЧТЕНИЕ -->
     <div id="screen-article" class="screen">
         <header class="top-bar">
-            <button class="back-btn" onclick="backToCategory()">
-                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
+            <button class="back-btn" onclick="backToCategory()"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
             <h2 style="font-size: 16px; font-weight: 800; color: var(--dim);">Чтение</h2>
             <button class="edit-btn" id="adminEditArtBtn" onclick="openArticleModal(true)" style="display: none;">✏️</button>
         </header>
@@ -132,7 +122,7 @@
         <header class="top-bar">
             <button class="back-btn" onclick="show('home')"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
             <h2 class="page-title" style="font-size: 20px;">Профиль</h2>
-            <div style="width: 40px;"></div>
+            <button class="btn-icon" onclick="openSettingsModal()">⚙️</button>
         </header>
         <div id="profileContent"></div>
 
@@ -161,17 +151,54 @@
         <div id="adminTabModeration" class="admin-tab"><div id="adminModerationList"></div></div>
     </div>
 
-    <!-- НИЖНЕЕ МЕНЮ -->
-    <div class="floating-nav">
-        <button class="nav-item active" data-target="home" onclick="show('home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
-        <button class="nav-item" data-target="calc" onclick="show('calc')"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg></button>
-        <div style="width: 60px;"></div> 
-        <button class="nav-item" data-target="profile" onclick="show('profile')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
-        <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></button>
-        <div class="nav-center-btn" onclick="openQuickAction()"><svg viewBox="0 0 24 24" stroke="#000" stroke-width="3" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <!-- НИЖНЕЕ МЕНЮ (Новый стиль) -->
+    <div class="nav-container">
+        <div class="nav-pill">
+            <button class="nav-item active" data-target="profile" onclick="show('profile')">
+                <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </button>
+            <button class="nav-item" data-target="home" onclick="show('home')">
+                <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            </button>
+            <button class="nav-item" data-target="calc" onclick="show('calc')">
+                <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg>
+            </button>
+            <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;">
+                <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </button>
+        </div>
+        <button class="nav-action-btn" onclick="openQuickAction()">
+            <svg viewBox="0 0 24 24" stroke="#000" stroke-width="3" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
     </div>
 
-    <!-- МОДАЛКА: ДЕНЬ КАЛЕНДАРЯ -->
+    <!-- МОДАЛКИ -->
+    <!-- Настройки профиля -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Настройки профиля</h3>
+            <div class="input-group">
+                <label>Никнейм</label>
+                <input type="text" id="setName" class="input" placeholder="Ваше имя">
+            </div>
+            
+            <div class="input-group">
+                <label>Аватарка</label>
+                <input type="file" id="setAvatar" accept="image/jpeg, image/png, image/gif" class="input file-input" onchange="previewImage(this, 'avatarPreview')">
+                <div id="avatarPreview" class="preview-box" style="display:none;"></div>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 16px;">
+                <label>Баннер</label>
+                <input type="file" id="setBanner" accept="image/jpeg, image/png, image/gif" class="input file-input" onchange="previewImage(this, 'bannerPreview')">
+                <div id="bannerPreview" class="preview-box" style="display:none;"></div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveProfileSettings()">Сохранить</button>
+            <button class="btn btn-ghost" onclick="closeModal('settingsModal')">Отмена</button>
+        </div>
+    </div>
+
     <div id="dayModal" class="modal-overlay">
         <div class="modal">
             <h3 id="dayModalTitle">День 1</h3>
@@ -188,7 +215,6 @@
         </div>
     </div>
 
-    <!-- ОСТАЛЬНЫЕ МОДАЛКИ -->
     <div id="goalModal" class="modal-overlay">
         <div class="modal">
             <h3>Настройка цели</h3>
