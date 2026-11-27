@@ -2,28 +2,337 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bybit P2P Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VXO PLAT</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
-<body>
+<body data-theme="dark">
 
-    <div class="glow"></div>
+    <div class="glow-bg"></div>
 
-    <div class="container">
-        <h1>Welcome to P2P Scanner</h1>
-        <p class="subtitle">Умный поиск (3-и лица, ЛК на руках)</p>
-
-        <button id="refreshBtn" class="btn-primary" onclick="fetchData()">
-            <span id="btnText">Обновить данные</span>
-            <div class="spinner" id="spinner"></div>
-        </button>
-        
-        <div class="timer-text" id="timerText">Автообновление через: <span id="countdown">25</span> сек.</div>
-
-        <div id="results"></div>
+    <div id="loader">
+        <div class="loader-bar"><div class="loader-fill"></div></div>
     </div>
 
+    <!-- ЭКРАН 1: ГЛАВНАЯ -->
+    <div id="screen-home" class="screen active">
+        <div class="profile-header">
+            <div class="banner-image" id="userBanner"></div>
+            <div class="avatar-large" id="userAvatarLarge">U</div>
+            <div class="header-controls">
+                <button class="header-btn" onclick="toggleTheme()"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
+            </div>
+        </div>
+
+        <div class="user-info-block">
+            <h1 class="user-name-title" id="userName">Загрузка...</h1>
+            <p class="user-handle" id="userHandle">@vxoplat</p>
+            
+            <!-- Статистика профиля -->
+            <div class="profile-stats-row">
+                <div class="p-stat"><strong id="statSubs">0</strong><span>Подписки</span></div>
+                <div class="p-stat"><strong id="statFollowers">0</strong><span>Подписчики</span></div>
+                <div class="p-stat"><strong id="statLikes">0</strong><span>Лайки</span></div>
+            </div>
+        </div>
+
+        <div class="calendar-strip" id="calendarStrip"></div>
+
+        <div id="goalContainer">
+            <button class="btn btn-primary" onclick="openGoalModal()" id="createGoalBtn" style="margin-bottom: 24px;">Создать цель 🎯</button>
+            <div class="goal-card" id="goalCard" style="display: none;">
+                <div class="goal-header">
+                    <div class="goal-icon">🔥</div>
+                    <div style="flex:1;">
+                        <h3>Цель: <span id="goalTargetDisplay">0</span> ₽</h3>
+                        <p>Прогресс: <span id="goalProgressDisplay">0</span> ₽</p>
+                    </div>
+                    <button class="btn-icon" onclick="openGoalModal()" style="width:32px; height:32px; font-size:14px;">✏️</button>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="goalProgressBar"></div></div>
+                <div class="goal-stats">
+                    <div><span>Осталось</span><strong id="goalLeftDisplay">0 ₽</strong></div>
+                    <div><span>В день</span><strong id="goalDailyDisplay">0 ₽</strong></div>
+                    <div><span>Дней</span><strong id="goalDaysDisplay">0</strong></div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="openBalanceModal()" style="margin-top: 16px;">+ Добавить прибыль</button>
+            </div>
+        </div>
+
+        <div class="section-title" style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center;">
+            Разделы
+            <button id="adminAddCatBtn" class="btn-icon" onclick="openCatModal()" style="display: none;">+</button>
+        </div>
+        <div class="categories-list" id="categoriesGrid"></div>
+    </div>
+
+    <!-- ЭКРАН 2: СПИСОК СТАТЕЙ -->
+    <div id="screen-category" class="screen">
+        <header class="top-bar">
+            <button class="back-btn" onclick="show('home')"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <h2 id="categoryTitle" class="page-title" style="font-size: 20px;">Категория</h2>
+            <button id="adminAddArtBtn" class="btn-icon" onclick="openArticleModal()" style="display: none;">+</button>
+        </header>
+        <div id="articlesList" class="articles-list"></div>
+    </div>
+
+    <!-- ЭКРАН 3: ЧТЕНИЕ + КОММЕНТАРИИ -->
+    <div id="screen-article" class="screen">
+        <header class="top-bar">
+            <button class="back-btn" onclick="backToCategory()"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <h2 style="font-size: 16px; font-weight: 800; color: var(--dim);">Чтение</h2>
+            <button class="edit-btn" id="adminEditArtBtn" onclick="openArticleModal(true)" style="display: none;">✏️</button>
+        </header>
+        <div class="article-content">
+            <h1 id="articleTitle"></h1>
+            <div class="article-date" id="articleDate"></div>
+            <div class="article-text" id="articleText"></div>
+            
+            <!-- Блок комментариев -->
+            <div class="comments-section">
+                <h3 class="section-title" style="font-size: 18px; margin-top: 30px; margin-bottom: 12px;">Комментарии</h3>
+                <div id="commentsList" class="comments-list"></div>
+                <div class="comment-input-row">
+                    <input type="text" id="commentText" class="input" placeholder="Написать комментарий...">
+                    <button class="btn btn-primary" onclick="sendComment()" style="width: 50px; border-radius: 50%; padding: 0; flex-shrink: 0;">↑</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 4: КАЛЬКУЛЯТОР -->
+    <div id="screen-calc" class="screen">
+        <header class="top-bar">
+            <button class="back-btn" onclick="show('home')"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <h2 class="page-title" style="font-size: 20px;">Калькулятор</h2>
+            <div style="width: 40px;"></div>
+        </header>
+        
+        <div class="calc-box">
+            <div class="calc-grid">
+                <div class="calc-input-wrap"><label>Курс покупки</label><input type="number" id="calcBuy" placeholder="80" oninput="calcP2P()"></div>
+                <div class="calc-input-wrap"><label>Курс продажи</label><input type="number" id="calcSell" placeholder="85" oninput="calcP2P()"></div>
+            </div>
+            <div class="calc-input-wrap" style="margin-bottom: 12px;">
+                <label>Сумма сделки (₽)</label>
+                <input type="number" id="calcAmount" placeholder="10 000" oninput="calcP2P()" style="font-size: 24px; height: 64px;">
+            </div>
+            <div class="calc-grid">
+                <div class="calc-input-wrap"><label>Ком. покупки (%)</label><input type="number" id="calcBuyFee" placeholder="0" oninput="calcP2P()"></div>
+                <div class="calc-input-wrap"><label>Ком. продажи (%)</label><input type="number" id="calcSellFee" placeholder="0" oninput="calcP2P()"></div>
+            </div>
+        </div>
+        <div class="calc-result-box">
+            <div class="res-row-small"><span>Спред:</span> <strong id="resSpread">0 ₽ (0%)</strong></div>
+            <div class="res-row-big"><span>Прибыль:</span> <strong id="resProfit" style="color: var(--grn);">0 ₽</strong></div>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button class="btn btn-ghost" onclick="resetCalc()" style="flex: 1;">Сброс</button>
+            <button class="btn btn-primary" onclick="saveCalc()" style="flex: 2;">В статистику</button>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 5: ПРОФИЛЬ -->
+    <div id="screen-profile" class="screen">
+        <header class="top-bar">
+            <button class="back-btn" onclick="show('home')"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <h2 class="page-title" style="font-size: 20px;">Профиль</h2>
+            <button class="btn-icon" onclick="openSettingsModal()">⚙️</button>
+        </header>
+        <div id="profileContent"></div>
+
+        <!-- Мои статьи -->
+        <div id="myArticlesSection" style="margin-top: 30px;">
+            <h2 class="section-title">Мои статьи 📝</h2>
+            <div id="myArticlesList" class="articles-list"></div>
+        </div>
+
+        <div id="financeSection" style="display: none;">
+            <h2 class="section-title" style="margin: 30px 0 16px;">Финансы 💰</h2>
+            <div class="finance-grid">
+                <div class="fin-card green"><span>Доход</span><strong id="totalIncome">0 ₽</strong></div>
+                <div class="fin-card red"><span>Расход</span><strong id="totalExpense">0 ₽</strong></div>
+                <div class="fin-card blue"><span>Прибыль</span><strong id="netProfit">0 ₽</strong></div>
+            </div>
+            <button class="btn btn-primary" onclick="openTransModal()" style="margin-top: 16px; margin-bottom: 16px;">Добавить операцию</button>
+            <div id="transactionsList" class="articles-list"></div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 6: АДМИНКА -->
+    <div id="screen-admin" class="screen">
+        <h1 class="page-title" style="margin-bottom: 16px;">Админ-панель</h1>
+        <div class="tabs-nav">
+            <button class="tab-btn active" onclick="switchAdminTab('payments', this)">Заявки</button>
+            <button class="tab-btn" onclick="switchAdminTab('users', this)">Юзеры</button>
+        </div>
+        <div id="adminTabPayments" class="admin-tab active"><div id="adminPaymentsList"></div></div>
+        <div id="adminTabUsers" class="admin-tab"><div id="adminUsersList"></div></div>
+    </div>
+
+    <!-- НИЖНЕЕ МЕНЮ -->
+    <div class="nav-container">
+        <div class="nav-pill">
+            <button class="nav-item active" data-target="profile" onclick="show('profile')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
+            <button class="nav-item" data-target="home" onclick="show('home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+            <button class="nav-item" data-target="calc" onclick="show('calc')"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg></button>
+            <button class="nav-item" id="navAdminBtn" data-target="admin" onclick="show('admin')" style="display: none;"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></button>
+        </div>
+        <button class="nav-action-btn" onclick="openQuickAction()"><svg viewBox="0 0 24 24" stroke="#000" stroke-width="3" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    </div>
+
+    <!-- МОДАЛКИ -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Настройки профиля</h3>
+            <div class="input-group">
+                <label>Никнейм</label>
+                <input type="text" id="setName" class="input" placeholder="Ваше имя">
+            </div>
+            <div class="input-group">
+                <label>Аватарка</label>
+                <input type="file" id="setAvatar" accept="image/jpeg, image/png, image/gif" class="input file-input" onchange="previewImage(this, 'avatarPreview')">
+                <div id="avatarPreview" class="preview-box" style="display:none;"></div>
+            </div>
+            <div class="input-group" style="margin-bottom: 16px;">
+                <label>Баннер</label>
+                <input type="file" id="setBanner" accept="image/jpeg, image/png, image/gif" class="input file-input" onchange="previewImage(this, 'bannerPreview')">
+                <div id="bannerPreview" class="preview-box" style="display:none;"></div>
+            </div>
+            <button class="btn btn-primary" onclick="saveProfileSettings()">Сохранить</button>
+            <button class="btn btn-ghost" onclick="closeModal('settingsModal')">Отмена</button>
+        </div>
+    </div>
+
+    <div id="dayModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="dayModalTitle">День 1</h3>
+            <p style="color:var(--dim); margin-bottom:16px;">План на этот день: <strong id="dayModalTarget" style="color:var(--txt);">0 ₽</strong></p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button class="btn btn-primary" onclick="markDay(true)">✅ Выполнено (Добавить план)</button>
+                <button class="btn btn-danger" onclick="markDay(false)">❌ Провал (Ничего не добавлять)</button>
+                <div class="input-row" style="margin-top:10px;">
+                    <input type="number" id="dayCustomAmount" class="input" placeholder="Своя сумма (₽)" style="flex:1;">
+                    <button class="btn btn-ghost" style="width:auto; padding:0 20px;" onclick="addCustomDay()">+</button>
+                </div>
+            </div>
+            <button class="btn btn-ghost" onclick="closeModal('dayModal')" style="margin-top:10px;">Закрыть</button>
+        </div>
+    </div>
+
+    <div id="goalModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Настройка цели</h3>
+            <div class="input-row">
+                <div class="input-group"><label>Цель (₽)</label><input type="number" id="goalAmount" class="input" placeholder="100000"></div>
+                <div class="input-group"><label>Старт (₽)</label><input type="number" id="goalStart" class="input" placeholder="10000"></div>
+            </div>
+            <div class="input-row">
+                <div class="input-group"><label>Дата</label><input type="date" id="goalDate" class="input"></div>
+                <div class="input-group"><label>Режим</label>
+                    <select id="goalMode" class="input" onchange="updateGoalRateLabel()">
+                        <option value="rub">В рублях</option>
+                        <option value="pct">В процентах</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-group" style="margin-bottom: 16px;">
+                <label id="goalRateLabel">План в день (₽)</label>
+                <input type="number" id="goalRate" class="input" placeholder="500" step="0.1">
+            </div>
+            <button class="btn btn-primary" onclick="saveGoal()">Сохранить цель</button>
+            <button class="btn btn-ghost" onclick="closeModal('goalModal')">Отмена</button>
+        </div>
+    </div>
+
+    <div id="balanceModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Добавить прибыль</h3>
+            <input type="number" id="dailyProfit" class="input" placeholder="Сумма (₽)" style="margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="addBalance()">Сохранить</button>
+            <button class="btn btn-ghost" onclick="closeModal('balanceModal')">Отмена</button>
+        </div>
+    </div>
+
+    <div id="catModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Новая категория</h3>
+            <input type="text" id="newCatName" class="input" placeholder="Название" style="margin-bottom: 12px;">
+            <input type="text" id="newCatIcon" class="input" placeholder="Эмодзи" style="margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="saveCategory()">Создать</button>
+            <button class="btn btn-ghost" onclick="closeModal('catModal')">Отмена</button>
+        </div>
+    </div>
+
+    <div id="articleModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modalArtTitle">Новая статья</h3>
+            <input type="text" id="editTitle" class="input" placeholder="Заголовок" style="margin-bottom: 12px;">
+            <textarea id="editContent" class="input" rows="6" placeholder="Текст статьи..." style="margin-bottom: 12px;"></textarea>
+            <select id="editTier" class="input" style="margin-bottom: 16px;">
+                <option value="free">Доступ: Free</option>
+                <option value="pro">Доступ: PRO</option>
+            </select>
+            <button class="btn btn-primary" onclick="saveArticle()">Сохранить</button>
+            <button class="btn btn-danger" id="deleteArtBtn" onclick="deleteArticle()" style="display: none; margin-top: 10px;">Удалить</button>
+            <button class="btn btn-ghost" onclick="closeModal('articleModal')">Отмена</button>
+        </div>
+    </div>
+
+    <div id="transModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Новая операция</h3>
+            <select id="transType" class="input" style="margin-bottom: 12px;">
+                <option value="income">Доход (+)</option>
+                <option value="expense">Расход (-)</option>
+            </select>
+            <input type="number" id="transAmount" class="input" placeholder="Сумма (₽)" style="margin-bottom: 12px;">
+            <input type="text" id="transDesc" class="input" placeholder="Описание" style="margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="saveTransaction()">Добавить</button>
+            <button class="btn btn-ghost" onclick="closeModal('transModal')">Отмена</button>
+        </div>
+    </div>
+
+    <div id="sendReqModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Реквизиты для оплаты</h3>
+            <textarea id="adminReqText" class="input" rows="4" placeholder="Номер карты..." style="margin-bottom: 16px;"></textarea>
+            <button class="btn btn-primary" onclick="sendRequisitesToUser()">Отправить</button>
+            <button class="btn btn-ghost" onclick="closeModal('sendReqModal')">Отмена</button>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal" style="text-align:center;">
+            <h3 id="confirmTitle">Подтверждение</h3>
+            <p id="confirmText" style="margin-bottom: 20px; color:var(--dim);"></p>
+            <button class="btn btn-primary" id="confirmYesBtn">Да</button>
+            <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Отмена</button>
+        </div>
+    </div>
+
+    <div id="paywallModal" class="modal-overlay">
+        <div class="modal" style="text-align: center;">
+            <div style="font-size: 50px; margin-bottom: 16px;">🔒</div>
+            <h3>PRO Доступ</h3>
+            <div id="paywallContent">
+                <div style="background:var(--bg); padding:16px; border-radius:16px; text-align:left; margin-bottom:16px;">
+                    <p style="font-weight:800; margin-bottom:10px; font-size:16px;">Оформи подписку за 2550 ₽ и получи:</p>
+                    <ul style="font-size:14px; color:var(--dim); line-height:1.6; padding-left:20px;">
+                        <li>Все мануалы и связки</li>
+                        <li>Возможность продавать статьи</li>
+                        <li>Статистика профита</li>
+                    </ul>
+                </div>
+                <button class="btn btn-primary" onclick="requestPayment()">Оформить за 2550 ₽</button>
+            </div>
+            <button class="btn btn-ghost" onclick="closeModal('paywallModal')">Закрыть</button>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
     <script src="app.js"></script>
 </body>
 </html>
