@@ -1,14 +1,18 @@
 {
-  "name": "vxo-knowledge-base",
+  "name": "bybit-p2p-scanner",
   "version": "1.0.0",
+  "description": "P2P Scanner with Beside UI style",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "axios": "^1.6.8",
+    "axios": "^1.6.7",
     "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "pg": "^8.11.5"
+    "express": "^4.18.2",
+    "https-proxy-agent": "^7.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
