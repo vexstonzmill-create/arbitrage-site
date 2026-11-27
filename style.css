@@ -1,3 +1,8 @@
+/* Фон для html убирает белые/светлые полосы по бокам на мобильных */
+html {
+    background-color: #0a0a0c;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -12,25 +17,28 @@ body {
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: hidden; /* Запрещаем горизонтальный скролл */
 }
 
-/* Свечение на фоне */
+/* Свечение на фоне (зафиксировано) */
 .glow {
-    position: absolute;
+    position: fixed;
     top: -100px;
-    width: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100vw; 
     max-width: 600px;
     height: 350px;
     background: radial-gradient(ellipse at center, rgba(30,80,255,0.4) 0%, rgba(200,180,160,0.1) 50%, rgba(0,0,0,0) 100%);
     filter: blur(50px);
     z-index: -1;
     animation: pulse 4s infinite alternate;
+    pointer-events: none;
 }
 
 @keyframes pulse {
-    0% { opacity: 0.6; transform: scale(1); }
-    100% { opacity: 1; transform: scale(1.05); }
+    0% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+    100% { opacity: 1; transform: translateX(-50%) scale(1.05); }
 }
 
 .container {

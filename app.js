@@ -1,7 +1,7 @@
 const API_URL = '/api/p2p';
 const TARGET_AMOUNT = 50000; // Сумма в рублях, которую ищем
-const REFRESH_INTERVAL = 25000; // 25 секунд
-let countdownValue = 25;
+const REFRESH_INTERVAL = 20000; // 20 секунд
+let countdownValue = 20;
 let countdownInterval;
 
 async function fetchData() {
@@ -20,17 +20,22 @@ async function fetchData() {
     
     // Сброс таймера
     clearInterval(countdownInterval);
-    countdownValue = 25;
+    countdownValue = 20;
     countdownEl.innerText = countdownValue;
 
     try {
         const res = await fetch(`${API_URL}?amount=${TARGET_AMOUNT}`);
-        const data = await res.json();
+        
+        // Если сервер вернул ошибку (например, 500 из-за бана Bybit)
+        if (!res.ok) {
+            throw new Error(`Ошибка сервера: ${res.status}`);
+        }
 
+        const data = await res.json();
         results.innerHTML = ''; 
 
         if (data.length === 0) {
-            results.innerHTML = '<p style="text-align:center;color:#888;margin-top:20px;">Нет подходящих объявлений</p>';
+            results.innerHTML = '<p style="text-align:center;color:#ffaa00;margin-top:20px;font-size:14px;">Объявлений не найдено.<br>Возможно, изменились лимиты или Bybit заблокировал IP.</p>';
         }
 
         data.forEach((item, index) => {
@@ -57,7 +62,7 @@ async function fetchData() {
 
     } catch (err) {
         console.error(err);
-        results.innerHTML = '<p style="color:#ff5555;text-align:center;margin-top:20px;">Ошибка загрузки данных</p>';
+        results.innerHTML = '<p style="color:#ff5555;text-align:center;margin-top:20px;font-size:14px;">Ошибка получения данных.<br>Bybit блокирует запросы с Render. Нужен прокси (PROXY_URL).</p>';
     } finally {
         // Возвращаем UI в исходное состояние
         btn.disabled = false;
