@@ -90,7 +90,6 @@
             <div class="article-date" id="articleDate"></div>
             <div class="article-text" id="articleText"></div>
             
-            <!-- Блок комментариев -->
             <div class="comments-section">
                 <h3 class="section-title" style="font-size: 18px; margin-top: 30px; margin-bottom: 12px;">Комментарии</h3>
                 <div id="commentsList" class="comments-list"></div>
@@ -141,6 +140,8 @@
             <h2 class="page-title" style="font-size: 20px;">Профиль</h2>
             <button class="btn-icon" onclick="openSettingsModal()">⚙️</button>
         </header>
+        
+        <!-- Динамический профиль -->
         <div id="profileContent"></div>
 
         <!-- Мои статьи -->
@@ -152,9 +153,9 @@
         <div id="financeSection" style="display: none;">
             <h2 class="section-title" style="margin: 30px 0 16px;">Финансы 💰</h2>
             <div class="finance-grid">
-                <div class="fin-card green"><span>Доход</span><strong id="totalIncome">0 ₽</strong></div>
-                <div class="fin-card red"><span>Расход</span><strong id="totalExpense">0 ₽</strong></div>
-                <div class="fin-card blue"><span>Прибыль</span><strong id="netProfit">0 ₽</strong></div>
+                <div class="fin-card green"><span>Доход</span><strong id="totalIncome">0.00 ₽</strong></div>
+                <div class="fin-card red"><span>Расход</span><strong id="totalExpense">0.00 ₽</strong></div>
+                <div class="fin-card blue"><span>Прибыль</span><strong id="netProfit">0.00 ₽</strong></div>
             </div>
             <button class="btn btn-primary" onclick="openTransModal()" style="margin-top: 16px; margin-bottom: 16px;">Добавить операцию</button>
             <div id="transactionsList" class="articles-list"></div>
@@ -191,16 +192,22 @@
                 <label>Никнейм</label>
                 <input type="text" id="setName" class="input" placeholder="Ваше имя">
             </div>
+            
             <div class="input-group">
                 <label>Аватарка</label>
-                <input type="file" id="setAvatar" accept="image/jpeg, image/png, image/gif" class="input file-input" onchange="previewImage(this, 'avatarPreview')">
+                <!-- Скрытый инпут и кастомная кнопка -->
+                <input type="file" id="setAvatar" accept="image/jpeg, image/png, image/gif" style="display: none;" onchange="previewImage(this, 'avatarPreview')">
+                <label for="setAvatar" class="btn btn-ghost" style="margin-top: 4px; font-size: 14px; padding: 12px;">Выбрать фото</label>
                 <div id="avatarPreview" class="preview-box" style="display:none;"></div>
             </div>
+
             <div class="input-group" style="margin-bottom: 16px;">
                 <label>Баннер</label>
-                <input type="file" id="setBanner" accept="image/jpeg, image/png, image/gif" class="input file-input" onchange="previewImage(this, 'bannerPreview')">
+                <input type="file" id="setBanner" accept="image/jpeg, image/png, image/gif" style="display: none;" onchange="previewImage(this, 'bannerPreview')">
+                <label for="setBanner" class="btn btn-ghost" style="margin-top: 4px; font-size: 14px; padding: 12px;">Выбрать баннер</label>
                 <div id="bannerPreview" class="preview-box" style="display:none;"></div>
             </div>
+
             <button class="btn btn-primary" onclick="saveProfileSettings()">Сохранить</button>
             <button class="btn btn-ghost" onclick="closeModal('settingsModal')">Отмена</button>
         </div>
@@ -209,7 +216,7 @@
     <div id="dayModal" class="modal-overlay">
         <div class="modal">
             <h3 id="dayModalTitle">День 1</h3>
-            <p style="color:var(--dim); margin-bottom:16px;">План на этот день: <strong id="dayModalTarget" style="color:var(--txt);">0 ₽</strong></p>
+            <p style="color:var(--dim); margin-bottom:16px;">План на этот день: <strong id="dayModalTarget" style="color:var(--txt);">0.00 ₽</strong></p>
             <div style="display:flex; flex-direction:column; gap:10px;">
                 <button class="btn btn-primary" onclick="markDay(true)">✅ Выполнено (Добавить план)</button>
                 <button class="btn btn-danger" onclick="markDay(false)">❌ Провал (Ничего не добавлять)</button>

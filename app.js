@@ -40,7 +40,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function authUser() {
     if (!window.Telegram || !window.Telegram.WebApp.initData) {
-        // Тестовый админ для браузера
         state.user = { id: 6938068102, display_name: 'Админ', username: 'admin', role: 'admin', is_paid: true, goal_amount: 100000, start_capital: 10000, current_balance: 15000, goal_date: '2025-01-01', goal_mode: 'rub', goal_daily_rate: 30, subscribers: 150, subscriptions: 20, likes: 500 };
         updateUIForUser(); return;
     }
@@ -60,7 +59,7 @@ function updateUIForUser() {
     if (!state.user) return;
     const name = state.user.display_name || 'User';
     
-    // Аватарка и Баннер
+    // Баннер и Аватарка в шапке
     const avLarge = document.getElementById('userAvatarLarge');
     const banner = document.getElementById('userBanner');
     
@@ -70,11 +69,9 @@ function updateUIForUser() {
     if (state.user.banner_url) banner.style.backgroundImage = `url(${state.user.banner_url})`; 
     else banner.style.backgroundImage = `url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop')`;
 
-    // Текст
     document.getElementById('userName').textContent = name;
     document.getElementById('userHandle').textContent = '@' + (state.user.username || 'user');
     
-    // Статистика
     document.getElementById('statSubs').textContent = state.user.subscriptions || 0;
     document.getElementById('statFollowers').textContent = state.user.subscribers || 0;
     document.getElementById('statLikes').textContent = state.user.likes || 0;
@@ -109,10 +106,7 @@ window.openSettingsModal = () => {
 
 function previewImage(input, previewId) {
     if (input.files && input.files[0]) {
-        // Ограничение по размеру файла (5MB)
-        if (input.files[0].size > 5 * 1024 * 1024) {
-            return showToast('Файл слишком большой (макс 5MB)', 'error');
-        }
+        if (input.files[0].size > 5 * 1024 * 1024) return showToast('Файл слишком большой (макс 5MB)', 'error');
         const reader = new FileReader();
         reader.onload = function(e) {
             const preview = document.getElementById(previewId);
@@ -134,13 +128,15 @@ window.saveProfileSettings = async () => {
         body: JSON.stringify({ userId: state.user.id, display_name: newName, avatar_url: tempAvatarBase64, banner_url: tempBannerBase64 })
     });
     
+    // Обновляем локальный стейт сразу
     state.user.display_name = newName;
     state.user.avatar_url = tempAvatarBase64;
     state.user.banner_url = tempBannerBase64;
     
     closeModal('settingsModal');
     showToast('Профиль обновлен!', 'success');
-    updateUIForUser();
+    updateUIForUser(); 
+    if (document.getElementById('screen-profile').classList.contains('active')) renderProfile();
 };
 
 // КАЛЕНДАРЬ
@@ -168,13 +164,13 @@ window.openDayModal = (dayNum, dateStr) => {
     const needed = state.user.goal_amount - state.user.start_capital;
     currentDayPlan = needed / (daysLeft || 1);
     document.getElementById('dayModalTitle').textContent = `${dayNum}-е число`;
-    document.getElementById('dayModalTarget').textContent = `${currentDayPlan.toFixed(0)} ₽`;
+    document.getElementById('dayModalTarget').textContent = `${currentDayPlan.toFixed(2)} ₽`;
     document.getElementById('dayCustomAmount').value = '';
     document.getElementById('dayModal').classList.add('active');
 };
 
 window.markDay = async (isDone) => {
-    if (isDone) { await addToBalance(currentDayPlan); showToast(`Добавлено ${currentDayPlan.toFixed(0)} ₽!`, 'success'); }
+    if (isDone) { await addToBalance(currentDayPlan); showToast(`Добавлено ${currentDayPlan.toFixed(2)} ₽!`, 'success'); }
     else { showToast('День отмечен', 'info'); }
     closeModal('dayModal');
 };
@@ -182,7 +178,7 @@ window.markDay = async (isDone) => {
 window.addCustomDay = async () => {
     const val = parseFloat(document.getElementById('dayCustomAmount').value);
     if (!val) return showToast('Введите сумму', 'error');
-    await addToBalance(val); showToast(`Добавлено ${val} ₽`, 'success');
+    await addToBalance(val); showToast(`Добавлено ${val.toFixed(2)} ₽`, 'success');
     closeModal('dayModal');
 };
 
@@ -215,16 +211,16 @@ window.saveGoal = async () => {
 function updateGoalUI() {
     const target = state.user.goal_amount; const current = state.user.current_balance || state.user.start_capital;
     const progress = Math.min(100, (current / target) * 100);
-    document.getElementById('goalTargetDisplay').textContent = target.toLocaleString('ru-RU');
-    document.getElementById('goalProgressDisplay').textContent = current.toLocaleString('ru-RU');
+    document.getElementById('goalTargetDisplay').textContent = target.toFixed(2);
+    document.getElementById('goalProgressDisplay').textContent = current.toFixed(2);
     document.getElementById('goalProgressBar').style.width = `${progress}%`;
     const left = target - current;
-    document.getElementById('goalLeftDisplay').textContent = left > 0 ? `${left.toLocaleString('ru-RU')} ₽` : 'Достигнута!';
+    document.getElementById('goalLeftDisplay').textContent = left > 0 ? `${left.toFixed(2)} ₽` : 'Достигнута!';
     const goalDate = new Date(state.user.goal_date + 'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0);
     const daysLeft = Math.max(0, Math.ceil((goalDate.getTime() - today.getTime()) / (1000 * 3600 * 24)));
     document.getElementById('goalDaysDisplay').textContent = daysLeft;
     let daily = 0; if (daysLeft > 0 && left > 0) daily = left / daysLeft;
-    document.getElementById('goalDailyDisplay').textContent = `${daily.toFixed(0)} ₽`;
+    document.getElementById('goalDailyDisplay').textContent = `${daily.toFixed(2)} ₽`;
 }
 
 window.openBalanceModal = () => { document.getElementById('dailyProfit').value = ''; document.getElementById('balanceModal').classList.add('active'); };
@@ -234,7 +230,7 @@ window.addBalance = async () => {
     await addToBalance(amount); closeModal('balanceModal'); showToast('Баланс обновлен!', 'success');
 };
 
-// ДАННЫЕ И РАЗДЕЛЫ
+// ДАННЫЕ
 async function loadData() {
     try {
         const res = await fetch(`${API_URL}/api/data`); const data = await res.json();
@@ -245,6 +241,10 @@ async function loadData() {
 
 function renderCategories() {
     const grid = document.getElementById('categoriesGrid');
+    if (!state.categories || state.categories.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; color:var(--dim);">Нет разделов</p>';
+        return;
+    }
     grid.innerHTML = state.categories.map(cat => {
         let count = state.articles.filter(a => a.category === cat.name).length;
         if (cat.name === 'Пользовательское') {
@@ -257,7 +257,6 @@ function renderCategories() {
 window.openCategory = (catName) => {
     state.currentCategory = catName; document.getElementById('categoryTitle').textContent = catName;
     let filtered = [];
-    
     if (catName === 'Пользовательское') {
         filtered = state.articles.filter(a => a.author_id != 6938068102 && a.author_id != null);
     } else {
@@ -343,11 +342,12 @@ async function loadTransactions() {
     list.innerHTML = data.items.length ? data.items.map(t => {
         const isInc = t.type === 'income';
         if (isInc) inc += parseFloat(t.amount); else exp += parseFloat(t.amount);
-        return `<div class="stat-item"><div><div style="font-weight:800;">${t.description}</div><div class="info">${new Date(t.created_at).toLocaleDateString()}</div></div><div class="profit ${isInc ? 'positive' : 'negative'}">${isInc ? '+' : '-'}${t.amount} ₽</div></div>`;
+        return `<div class="stat-item"><div><div style="font-weight:800;">${t.description}</div><div class="info">${new Date(t.created_at).toLocaleDateString()}</div></div><div class="profit ${isInc ? 'positive' : 'negative'}">${isInc ? '+' : '-'}${parseFloat(t.amount).toFixed(2)} ₽</div></div>`;
     }).join('') : '<p style="color:var(--dim); font-size:14px;">Нет операций</p>';
-    document.getElementById('totalIncome').textContent = `+${inc} ₽`;
-    document.getElementById('totalExpense').textContent = `-${exp} ₽`;
-    document.getElementById('netProfit').textContent = `${inc - exp} ₽`;
+    
+    document.getElementById('totalIncome').textContent = `+${inc.toFixed(2)} ₽`;
+    document.getElementById('totalExpense').textContent = `-${exp.toFixed(2)} ₽`;
+    document.getElementById('netProfit').textContent = `${(inc - exp).toFixed(2)} ₽`;
     document.getElementById('netProfit').style.color = (inc - exp) >= 0 ? 'var(--grn)' : 'var(--red)';
 }
 
@@ -360,18 +360,24 @@ window.show = (screenId) => {
     if (screenId === 'admin') loadAdminTab('payments', document.querySelector('.tab-btn'));
 };
 
+// ПРОФИЛЬ (НОВЫЙ ДИЗАЙН)
 async function renderProfile() {
     const container = document.getElementById('profileContent');
     const isPaid = state.user.is_paid || state.user.role === 'admin';
+    
+    let bannerStyle = state.user.banner_url ? `background-image: url('${state.user.banner_url}');` : `background: linear-gradient(135deg, #a78bfa, #3b82f6);`;
+    let avatarHtml = state.user.avatar_url ? `<img src="${state.user.avatar_url}">` : (state.user.display_name || 'U')[0].toUpperCase();
+
     container.innerHTML = `
-        <div class="card" style="text-align:center; padding: 24px; background:var(--card-bg); border-radius:24px; box-shadow: var(--shadow); border: 1px solid var(--card-border); margin-bottom: 16px;">
-            <div class="avatar" style="width:70px; height:70px; font-size:28px; margin: 0 auto 16px; background:var(--primary); color:var(--primary-txt);">
-                ${state.user.avatar_url ? `<img src="${state.user.avatar_url}">` : (state.user.display_name || 'U')[0].toUpperCase()}
-            </div>
-            <h3 style="font-size: 20px;">${state.user.display_name}</h3>
-            <p style="color:var(--dim); margin-bottom: 20px;">@${state.user.username || 'unknown'}</p>
-            <div style="background: ${isPaid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${isPaid ? 'var(--grn)' : 'var(--red)'}; padding: 12px; border-radius: 16px; font-weight: 800; font-size: 15px;">
-                ${isPaid ? '✅ Доступ открыт' : '🔒 Требуется подписка'}
+        <div class="profile-card">
+            <div class="profile-banner-bg" style="${bannerStyle}"></div>
+            <div class="profile-avatar-wrap">${avatarHtml}</div>
+            <div class="profile-info-wrap">
+                <h2>${state.user.display_name}</h2>
+                <p>@${state.user.username || 'unknown'}</p>
+                <div class="profile-status-badge" style="background: ${isPaid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${isPaid ? 'var(--grn)' : 'var(--red)'};">
+                    ${isPaid ? '✅ Доступ открыт' : '🔒 Требуется подписка'}
+                </div>
             </div>
         </div>
     `;
