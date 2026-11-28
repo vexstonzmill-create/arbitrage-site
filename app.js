@@ -30,6 +30,11 @@ function showConfirm(title, text, onConfirm) {
     document.getElementById('confirmModal').classList.add('active');
 }
 
+// Красивое разделение тысяч
+function formatMoney(num) {
+    return Number(num || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     if (window.Telegram?.WebApp) { window.Telegram.WebApp.ready(); window.Telegram.WebApp.expand(); }
     setTimeout(() => { const loader = document.getElementById('loader'); if (loader) loader.classList.add('hidden'); }, 800);
@@ -59,12 +64,23 @@ function updateUIForUser() {
     if (!state.user) return;
     const name = state.user.display_name || 'User';
     
+    // Главная
     const avLarge = document.getElementById('userAvatarLarge');
     if (state.user.avatar_url) avLarge.innerHTML = `<img src="${state.user.avatar_url}">`; 
     else avLarge.textContent = name[0].toUpperCase();
-    
     document.getElementById('userName').textContent = name;
     document.getElementById('userHandle').textContent = '@' + (state.user.username || 'user');
+
+    // Профиль (баннер и ава)
+    const profAvatar = document.getElementById('profileAvatarLarge');
+    const profBanner = document.getElementById('profileBanner');
+    if (state.user.avatar_url) profAvatar.innerHTML = `<img src="${state.user.avatar_url}">`;
+    else profAvatar.textContent = name[0].toUpperCase();
+    if (state.user.banner_url) profBanner.style.backgroundImage = `url(${state.user.banner_url})`;
+    else profBanner.style.backgroundImage = `url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop')`;
+    
+    document.getElementById('profileUserName').textContent = name;
+    document.getElementById('profileUserHandle').textContent = '@' + (state.user.username || 'user');
     
     document.getElementById('statSubs').textContent = state.user.subscriptions || 0;
     document.getElementById('statFollowers').textContent = state.user.subscribers || 0;
@@ -87,7 +103,6 @@ function updateUIForUser() {
     }
 }
 
-// ТАБЫ В ПРОФИЛЕ
 window.switchProfileTab = (tab, el) => {
     document.querySelectorAll('.p-tab').forEach(b => b.classList.remove('active'));
     if (el) el.classList.add('active');
@@ -95,7 +110,6 @@ window.switchProfileTab = (tab, el) => {
     document.getElementById('tab-' + tab).classList.add('active');
 };
 
-// НАСТРОЙКИ
 window.openSettingsModal = () => {
     document.getElementById('setName').value = state.user.display_name || '';
     document.getElementById('avatarPreview').style.display = 'none';
@@ -138,7 +152,6 @@ window.saveProfileSettings = async () => {
     updateUIForUser(); 
 };
 
-// КАЛЕНДАРЬ
 function renderCalendar() {
     const strip = document.getElementById('calendarStrip');
     const today = new Date();
@@ -163,13 +176,13 @@ window.openDayModal = (dayNum, dateStr) => {
     const needed = state.user.goal_amount - state.user.start_capital;
     currentDayPlan = needed / (daysLeft || 1);
     document.getElementById('dayModalTitle').textContent = `${dayNum}-е число`;
-    document.getElementById('dayModalTarget').textContent = `${currentDayPlan.toFixed(2)} ₽`;
+    document.getElementById('dayModalTarget').textContent = `${formatMoney(currentDayPlan)} ₽`;
     document.getElementById('dayCustomAmount').value = '';
     document.getElementById('dayModal').classList.add('active');
 };
 
 window.markDay = async (isDone) => {
-    if (isDone) { await addToBalance(currentDayPlan); showToast(`Добавлено ${currentDayPlan.toFixed(2)} ₽!`, 'success'); }
+    if (isDone) { await addToBalance(currentDayPlan); showToast(`Добавлено ${formatMoney(currentDayPlan)} ₽!`, 'success'); }
     else { showToast('День отмечен', 'info'); }
     closeModal('dayModal');
 };
@@ -177,7 +190,7 @@ window.markDay = async (isDone) => {
 window.addCustomDay = async () => {
     const val = parseFloat(document.getElementById('dayCustomAmount').value);
     if (!val) return showToast('Введите сумму', 'error');
-    await addToBalance(val); showToast(`Добавлено ${val.toFixed(2)} ₽`, 'success');
+    await addToBalance(val); showToast(`Добавлено ${formatMoney(val)} ₽`, 'success');
     closeModal('dayModal');
 };
 
@@ -210,16 +223,16 @@ window.saveGoal = async () => {
 function updateGoalUI() {
     const target = state.user.goal_amount; const current = state.user.current_balance || state.user.start_capital;
     const progress = Math.min(100, (current / target) * 100);
-    document.getElementById('goalTargetDisplay').textContent = target.toFixed(2);
-    document.getElementById('goalProgressDisplay').textContent = current.toFixed(2);
+    document.getElementById('goalTargetDisplay').textContent = formatMoney(target);
+    document.getElementById('goalProgressDisplay').textContent = formatMoney(current);
     document.getElementById('goalProgressBar').style.width = `${progress}%`;
     const left = target - current;
-    document.getElementById('goalLeftDisplay').textContent = left > 0 ? `${left.toFixed(2)} ₽` : 'Достигнута!';
+    document.getElementById('goalLeftDisplay').textContent = left > 0 ? `${formatMoney(left)} ₽` : 'Достигнута!';
     const goalDate = new Date(state.user.goal_date + 'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0);
     const daysLeft = Math.max(0, Math.ceil((goalDate.getTime() - today.getTime()) / (1000 * 3600 * 24)));
     document.getElementById('goalDaysDisplay').textContent = daysLeft;
     let daily = 0; if (daysLeft > 0 && left > 0) daily = left / daysLeft;
-    document.getElementById('goalDailyDisplay').textContent = `${daily.toFixed(2)} ₽`;
+    document.getElementById('goalDailyDisplay').textContent = `${formatMoney(daily)} ₽`;
 }
 
 window.openBalanceModal = () => { document.getElementById('dailyProfit').value = ''; document.getElementById('balanceModal').classList.add('active'); };
@@ -229,11 +242,13 @@ window.addBalance = async () => {
     await addToBalance(amount); closeModal('balanceModal'); showToast('Баланс обновлен!', 'success');
 };
 
-// ДАННЫЕ И РАЗДЕЛЫ
+// ЗАГРУЗКА И ОТРИСОВКА
 async function loadData() {
     try {
         const res = await fetch(`${API_URL}/api/data`); const data = await res.json();
-        state.categories = data.categories || []; state.articles = data.articles || []; renderCategories();
+        state.categories = data.categories || []; 
+        state.articles = data.articles || []; 
+        renderCategories();
         loadMyArticles();
     } catch(e) { console.error('Load error', e); }
 }
@@ -271,7 +286,6 @@ window.openCategory = (catName) => {
     show('category');
 };
 
-// СТАТЬЯ И КОММЕНТАРИИ
 window.openArticle = (id) => {
     const art = state.articles.find(a => a.id === id); state.currentArticle = art;
     document.getElementById('articleTitle').textContent = art.title;
@@ -308,7 +322,6 @@ window.sendComment = async () => {
 
 window.backToCategory = () => openCategory(state.currentCategory);
 
-// МОИ СТАТЬИ
 async function loadMyArticles() {
     if (!state.user || !state.user.id) return;
     const list = document.getElementById('myArticlesList');
@@ -323,7 +336,6 @@ async function loadMyArticles() {
     `).join('') : '<p style="color:var(--dim); font-size:14px;">У вас пока нет статей</p>';
 }
 
-// ТРАНЗАКЦИИ
 window.openTransModal = () => document.getElementById('transModal').classList.add('active');
 window.saveTransaction = async () => {
     const type = document.getElementById('transType').value; const amount = parseFloat(document.getElementById('transAmount').value); const desc = document.getElementById('transDesc').value;
@@ -341,12 +353,12 @@ async function loadTransactions() {
     list.innerHTML = data.items.length ? data.items.map(t => {
         const isInc = t.type === 'income';
         if (isInc) inc += parseFloat(t.amount); else exp += parseFloat(t.amount);
-        return `<div class="stat-item"><div><div style="font-weight:800;">${t.description}</div><div class="info">${new Date(t.created_at).toLocaleDateString()}</div></div><div class="profit ${isInc ? 'positive' : 'negative'}">${isInc ? '+' : '-'}${parseFloat(t.amount).toFixed(2)} ₽</div></div>`;
+        return `<div class="stat-item"><div><div style="font-weight:800;">${t.description}</div><div class="info">${new Date(t.created_at).toLocaleDateString()}</div></div><div class="profit ${isInc ? 'positive' : 'negative'}">${isInc ? '+' : '-'}${formatMoney(t.amount)} ₽</div></div>`;
     }).join('') : '<p style="color:var(--dim); font-size:14px;">Нет операций</p>';
     
-    document.getElementById('totalIncome').textContent = `+${inc.toFixed(2)} ₽`;
-    document.getElementById('totalExpense').textContent = `-${exp.toFixed(2)} ₽`;
-    document.getElementById('netProfit').textContent = `${(inc - exp).toFixed(2)} ₽`;
+    document.getElementById('totalIncome').textContent = `+${formatMoney(inc)} ₽`;
+    document.getElementById('totalExpense').textContent = `-${formatMoney(exp)} ₽`;
+    document.getElementById('netProfit').textContent = `${formatMoney(inc - exp)} ₽`;
     document.getElementById('netProfit').style.color = (inc - exp) >= 0 ? 'var(--grn)' : 'var(--red)';
 }
 
@@ -367,7 +379,6 @@ window.requestPayment = async () => {
     showToast('Заявка отправлена!', 'success'); closeModal('paywallModal');
 };
 
-// АДМИН
 window.openCatModal = () => document.getElementById('catModal').classList.add('active');
 window.saveCategory = async () => {
     const name = document.getElementById('newCatName').value; const icon = document.getElementById('newCatIcon').value || '📄';
@@ -471,17 +482,16 @@ window.toggleBlock = (userId, isBlocked) => showConfirm('Блокировка', 
     loadAdminTab('users');
 });
 
-// КАЛЬКУЛЯТОР
 window.calcP2P = () => {
     const buy = parseFloat(document.getElementById('calcBuy').value) || 0; const sell = parseFloat(document.getElementById('calcSell').value) || 0;
     const amount = parseFloat(document.getElementById('calcAmount').value) || 0; const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0; const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
     const resSpread = document.getElementById('resSpread'); const resProfit = document.getElementById('resProfit');
-    if(!buy || !sell || !amount) { resSpread.textContent = '0 ₽ (0%)'; resProfit.textContent = '0 ₽'; return; }
+    if(!buy || !sell || !amount) { resSpread.textContent = '0.00 ₽ (0%)'; resProfit.textContent = '0.00 ₽'; return; }
     const usdtGross = amount / buy; const usdtNet = usdtGross * (1 - (buyFee / 100));
     const rubGross = usdtNet * sell; const rubNet = rubGross * (1 - (sellFee / 100));
     const profit = rubNet - amount; const spreadPct = ((sell - buy) / buy) * 100;
-    resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
-    resProfit.textContent = `${profit.toFixed(2)} ₽`;
+    resSpread.textContent = `${formatMoney(sell - buy)} ₽ (${spreadPct.toFixed(2)}%)`;
+    resProfit.textContent = `${formatMoney(profit)} ₽`;
     resProfit.style.color = profit >= 0 ? 'var(--grn)' : 'var(--red)';
     window._lastCalculatedProfit = profit;
 };
