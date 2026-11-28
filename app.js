@@ -492,21 +492,4 @@ window.saveCalc = async () => {
     await fetch(`${API_URL}/api/transactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, type: 'income', amount: window._lastCalculatedProfit, description: 'P2P Сделка (Калькулятор)' }) });
     await addToBalance(window._lastCalculatedProfit);
     showToast('Профит добавлен в статистику!', 'success'); window._lastCalculatedProfit = 0; resetCalc();
-};Profit');
-    if(!buy || !sell || !amount) { resSpread.textContent = '0 ₽ (0%)'; resProfit.textContent = '0 ₽'; return; }
-    const usdtGross = amount / buy; const usdtNet = usdtGross * (1 - (buyFee / 100));
-    const rubGross = usdtNet * sell; const rubNet = rubGross * (1 - (sellFee / 100));
-    const profit = rubNet - amount; const spreadPct = ((sell - buy) / buy) * 100;
-    resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
-    resProfit.textContent = `${profit.toFixed(2)} ₽`;
-    resProfit.style.color = profit >= 0 ? 'var(--grn)' : 'var(--red)';
-    window._lastCalculatedProfit = profit;
-};
-
-window.resetCalc = () => { ['calcBuy','calcSell','calcAmount','calcBuyFee','calcSellFee'].forEach(id=>document.getElementById(id).value=''); calcP2P(); };
-window.saveCalc = async () => {
-    if (!window._lastCalculatedProfit || window._lastCalculatedProfit <= 0) return showToast('Нет прибыли для сохранения', 'error');
-    await fetch(`${API_URL}/api/transactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, type: 'income', amount: window._lastCalculatedProfit, description: 'P2P Сделка (Калькулятор)' }) });
-    await addToBalance(window._lastCalculatedProfit);
-    showToast('Профит добавлен в статистику!', 'success'); window._lastCalculatedProfit = 0; resetCalc();
 };
