@@ -18,20 +18,20 @@ const pool = new Pool({ connectionString: CONFIG.DATABASE_URL, ssl: { rejectUnau
 
 async function initDB() {
   try {
-    // Основные таблицы
     await pool.query(`CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username TEXT, display_name TEXT, avatar_url TEXT, banner_url TEXT, role TEXT DEFAULT 'user', is_paid BOOLEAN DEFAULT false, is_blocked BOOLEAN DEFAULT false, goal_amount NUMERIC DEFAULT 0, start_capital NUMERIC DEFAULT 0, current_balance NUMERIC DEFAULT 0, goal_date DATE, goal_daily_rate NUMERIC DEFAULT 0, goal_mode TEXT DEFAULT 'rub');`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT);`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, author_id BIGINT, price NUMERIC DEFAULT 0, status TEXT DEFAULT 'published', tier TEXT DEFAULT 'free', updated_at TIMESTAMPTZ DEFAULT now());`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', requisites TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, type TEXT, amount NUMERIC, description TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
     
-    // Новые таблицы и колонки
-    await pool.query(`CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, article_id INT REFERENCES articles(id) ON DELETE CASCADE, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, text TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
-    
+    // Безопасное добавление новых колонок, если база старая
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_url TEXT;`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS subscribers INT DEFAULT 0;`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS subscriptions INT DEFAULT 0;`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS likes INT DEFAULT 0;`);
 
+    await pool.query(`CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name TEXT UNIQUE, icon TEXT);`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, category TEXT, title TEXT, content TEXT, image_url TEXT, author_id BIGINT, price NUMERIC DEFAULT 0, status TEXT DEFAULT 'published', tier TEXT DEFAULT 'free', updated_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS payment_requests (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, status TEXT DEFAULT 'pending', requisites TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, type TEXT, amount NUMERIC, description TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, article_id INT REFERENCES articles(id) ON DELETE CASCADE, user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, text TEXT, created_at TIMESTAMPTZ DEFAULT now());`);
+    
     const checkCats = await pool.query('SELECT count(*) FROM categories');
     if (parseInt(checkCats.rows[0].count) === 0) {
       await pool.query(`INSERT INTO categories (name, icon) VALUES ('Мануалы', '🏦'), ('Связки', '🔗'), ('Термины', '📚'), ('Безопасность', '🛡️'), ('Пользовательское', '👥');`);
@@ -60,7 +60,6 @@ app.post('/api/auth/telegram', async (req, res) => {
     const tgUser = JSON.parse(new URLSearchParams(initData).get('user'));
     const isAdmin = Number(tgUser.id) === Number(CONFIG.ADMIN_TG_ID);
     
-    // При конфликте (если юзер уже есть) мы сохраняем его кастомную аватарку и имя, если они заданы
     const result = await pool.query(`
       INSERT INTO users (id, username, display_name, avatar_url, role, subscribers, subscriptions, likes) 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
@@ -111,7 +110,6 @@ app.get('/api/data', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- СТАТЬИ И КОММЕНТАРИИ ---
 app.post('/api/articles', async (req, res) => {
   const { category, title, content, image_url, tier, author_id } = req.body;
   try {
@@ -163,7 +161,18 @@ app.get('/api/user/articles/:userId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// --- ОПЛАТА И АДМИНКА ---
+app.post('/api/categories', async (req, res) => {
+  const { name, icon } = req.body;
+  try {
+    await pool.query('INSERT INTO categories (name, icon) VALUES ($1, $2)', [name, icon || '📄']);
+    res.json({ success: true });
+  } catch (e) { 
+    // Если ошибка уникальности
+    if (e.code === '23505') return res.status(400).json({ error: 'Такая категория уже существует' });
+    res.status(500).json({ error: 'Ошибка базы данных' }); 
+  }
+});
+
 app.post('/api/payment-request', async (req, res) => {
   const { userId } = req.body;
   try {

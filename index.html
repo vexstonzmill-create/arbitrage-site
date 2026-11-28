@@ -18,23 +18,18 @@
 
     <!-- ЭКРАН 1: ГЛАВНАЯ -->
     <div id="screen-home" class="screen active">
-        <div class="profile-header">
-            <div class="banner-image" id="userBanner"></div>
-            <div class="avatar-large" id="userAvatarLarge">U</div>
-            <div class="header-controls">
-                <button class="header-btn" onclick="toggleTheme()"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
+        <header class="top-bar" style="margin-bottom: 0;">
+            <div class="logo-text">VXO<span>PLAT</span></div>
+            <div class="header-actions">
+                <button class="header-btn" style="background: var(--card-bg); color: var(--txt);" onclick="toggleTheme()"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
             </div>
-        </div>
+        </header>
 
-        <div class="user-info-block">
-            <h1 class="user-name-title" id="userName">Загрузка...</h1>
-            <p class="user-handle" id="userHandle">@vxoplat</p>
-            
-            <!-- Статистика профиля -->
-            <div class="profile-stats-row">
-                <div class="p-stat"><strong id="statSubs">0</strong><span>Подписки</span></div>
-                <div class="p-stat"><strong id="statFollowers">0</strong><span>Подписчики</span></div>
-                <div class="p-stat"><strong id="statLikes">0</strong><span>Лайки</span></div>
+        <div style="display: flex; align-items: center; gap: 16px; margin-top: 24px; margin-bottom: 24px;">
+            <div class="avatar-large" id="userAvatarLarge" style="position: relative; bottom: auto; left: auto; width: 64px; height: 64px; border-width: 2px; font-size: 24px;">U</div>
+            <div>
+                <h1 class="user-name-title" id="userName" style="font-size: 22px;">Загрузка...</h1>
+                <p class="user-handle" id="userHandle" style="margin-bottom: 0;">@vxoplat</p>
             </div>
         </div>
 
@@ -133,32 +128,48 @@
         </div>
     </div>
 
-    <!-- ЭКРАН 5: ПРОФИЛЬ -->
-    <div id="screen-profile" class="screen">
-        <header class="top-bar">
-            <button class="back-btn" onclick="show('home')"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
-            <h2 class="page-title" style="font-size: 20px;">Профиль</h2>
-            <button class="btn-icon" onclick="openSettingsModal()">⚙️</button>
-        </header>
-        
-        <!-- Динамический профиль -->
-        <div id="profileContent"></div>
-
-        <!-- Мои статьи -->
-        <div id="myArticlesSection" style="margin-top: 30px;">
-            <h2 class="section-title">Мои статьи 📝</h2>
-            <div id="myArticlesList" class="articles-list"></div>
+    <!-- ЭКРАН 5: ПРОФИЛЬ (С БАННЕРОМ И ТАБАМИ) -->
+    <div id="screen-profile" class="screen" style="padding: 0;">
+        <!-- Баннер сверху профиля -->
+        <div class="profile-banner-new">
+            <h2>VXO PLAT</h2>
+            <p>Твой надежный проводник в P2P</p>
         </div>
+        
+        <div style="padding: 24px 20px;">
+            <header class="top-bar" style="margin-bottom: 20px;">
+                <button class="back-btn" onclick="show('home')" style="background: var(--card-bg);"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M15 18l-6-6 6-6"/></svg></button>
+                <h2 class="page-title" style="font-size: 20px; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Профиль</h2>
+                <button class="btn-icon" onclick="openSettingsModal()" style="background: var(--card-bg);">⚙️</button>
+            </header>
 
-        <div id="financeSection" style="display: none;">
-            <h2 class="section-title" style="margin: 30px 0 16px;">Финансы 💰</h2>
-            <div class="finance-grid">
-                <div class="fin-card green"><span>Доход</span><strong id="totalIncome">0.00 ₽</strong></div>
-                <div class="fin-card red"><span>Расход</span><strong id="totalExpense">0.00 ₽</strong></div>
-                <div class="fin-card blue"><span>Прибыль</span><strong id="netProfit">0.00 ₽</strong></div>
+            <!-- Блок статистики -->
+            <div class="profile-stats-wrapper">
+                <div class="p-stat"><strong id="statSubs">0</strong><span>Подписки</span></div>
+                <div class="p-stat"><strong id="statFollowers">0</strong><span>Подписчики</span></div>
+                <div class="p-stat"><strong id="statLikes">0</strong><span>Лайки</span></div>
             </div>
-            <button class="btn btn-primary" onclick="openTransModal()" style="margin-top: 16px; margin-bottom: 16px;">Добавить операцию</button>
-            <div id="transactionsList" class="articles-list"></div>
+
+            <!-- Табы -->
+            <div class="profile-tabs-container">
+                <button class="p-tab active" onclick="switchProfileTab('finance', this)">Финансы</button>
+                <button class="p-tab" onclick="switchProfileTab('articles', this)">Мои статьи</button>
+            </div>
+
+            <!-- Контент Табов -->
+            <div id="tab-finance" class="profile-tab-content active">
+                <div class="finance-grid" style="margin-bottom: 20px;">
+                    <div class="fin-card green"><span>Доход</span><strong id="totalIncome" style="white-space: nowrap;">0.00 ₽</strong></div>
+                    <div class="fin-card red"><span>Расход</span><strong id="totalExpense" style="white-space: nowrap;">0.00 ₽</strong></div>
+                    <div class="fin-card blue"><span>Прибыль</span><strong id="netProfit" style="white-space: nowrap;">0.00 ₽</strong></div>
+                </div>
+                <button class="btn btn-primary" onclick="openTransModal()" style="margin-bottom: 16px;">Добавить операцию</button>
+                <div id="transactionsList" class="articles-list"></div>
+            </div>
+
+            <div id="tab-articles" class="profile-tab-content">
+                <div id="myArticlesList" class="articles-list"></div>
+            </div>
         </div>
     </div>
 
@@ -195,7 +206,6 @@
             
             <div class="input-group">
                 <label>Аватарка</label>
-                <!-- Скрытый инпут и кастомная кнопка -->
                 <input type="file" id="setAvatar" accept="image/jpeg, image/png, image/gif" style="display: none;" onchange="previewImage(this, 'avatarPreview')">
                 <label for="setAvatar" class="btn btn-ghost" style="margin-top: 4px; font-size: 14px; padding: 12px;">Выбрать фото</label>
                 <div id="avatarPreview" class="preview-box" style="display:none;"></div>
@@ -278,10 +288,13 @@
             <h3 id="modalArtTitle">Новая статья</h3>
             <input type="text" id="editTitle" class="input" placeholder="Заголовок" style="margin-bottom: 12px;">
             <textarea id="editContent" class="input" rows="6" placeholder="Текст статьи..." style="margin-bottom: 12px;"></textarea>
-            <select id="editTier" class="input" style="margin-bottom: 16px;">
-                <option value="free">Доступ: Free</option>
-                <option value="pro">Доступ: PRO</option>
-            </select>
+            <!-- Стилизованный селект -->
+            <div class="select-wrapper" style="margin-bottom: 16px;">
+                <select id="editTier" class="input select-hidden">
+                    <option value="free">Доступ: Free</option>
+                    <option value="pro">Доступ: PRO</option>
+                </select>
+            </div>
             <button class="btn btn-primary" onclick="saveArticle()">Сохранить</button>
             <button class="btn btn-danger" id="deleteArtBtn" onclick="deleteArticle()" style="display: none; margin-top: 10px;">Удалить</button>
             <button class="btn btn-ghost" onclick="closeModal('articleModal')">Отмена</button>

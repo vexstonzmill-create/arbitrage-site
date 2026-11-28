@@ -59,16 +59,10 @@ function updateUIForUser() {
     if (!state.user) return;
     const name = state.user.display_name || 'User';
     
-    // Баннер и Аватарка в шапке
     const avLarge = document.getElementById('userAvatarLarge');
-    const banner = document.getElementById('userBanner');
-    
     if (state.user.avatar_url) avLarge.innerHTML = `<img src="${state.user.avatar_url}">`; 
     else avLarge.textContent = name[0].toUpperCase();
     
-    if (state.user.banner_url) banner.style.backgroundImage = `url(${state.user.banner_url})`; 
-    else banner.style.backgroundImage = `url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop')`;
-
     document.getElementById('userName').textContent = name;
     document.getElementById('userHandle').textContent = '@' + (state.user.username || 'user');
     
@@ -82,8 +76,7 @@ function updateUIForUser() {
         document.getElementById('adminAddCatBtn').style.display = 'flex';
         document.getElementById('adminAddArtBtn').style.display = 'flex';
     }
-    if (state.user.is_paid) document.getElementById('financeSection').style.display = 'block';
-
+    
     if (state.user.goal_amount > 0) {
         document.getElementById('createGoalBtn').style.display = 'none';
         document.getElementById('goalCard').style.display = 'block';
@@ -93,6 +86,14 @@ function updateUIForUser() {
         document.getElementById('goalCard').style.display = 'none';
     }
 }
+
+// ТАБЫ В ПРОФИЛЕ
+window.switchProfileTab = (tab, el) => {
+    document.querySelectorAll('.p-tab').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.querySelectorAll('.profile-tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+};
 
 // НАСТРОЙКИ
 window.openSettingsModal = () => {
@@ -128,7 +129,6 @@ window.saveProfileSettings = async () => {
         body: JSON.stringify({ userId: state.user.id, display_name: newName, avatar_url: tempAvatarBase64, banner_url: tempBannerBase64 })
     });
     
-    // Обновляем локальный стейт сразу
     state.user.display_name = newName;
     state.user.avatar_url = tempAvatarBase64;
     state.user.banner_url = tempBannerBase64;
@@ -136,7 +136,6 @@ window.saveProfileSettings = async () => {
     closeModal('settingsModal');
     showToast('Профиль обновлен!', 'success');
     updateUIForUser(); 
-    if (document.getElementById('screen-profile').classList.contains('active')) renderProfile();
 };
 
 // КАЛЕНДАРЬ
@@ -230,7 +229,7 @@ window.addBalance = async () => {
     await addToBalance(amount); closeModal('balanceModal'); showToast('Баланс обновлен!', 'success');
 };
 
-// ДАННЫЕ
+// ДАННЫЕ И РАЗДЕЛЫ
 async function loadData() {
     try {
         const res = await fetch(`${API_URL}/api/data`); const data = await res.json();
@@ -356,32 +355,9 @@ window.show = (screenId) => {
     document.getElementById('screen-' + screenId).classList.add('active');
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.querySelector(`.nav-item[data-target="${screenId}"]`)?.classList.add('active');
-    if (screenId === 'profile') { renderProfile(); loadTransactions(); loadMyArticles(); }
+    if (screenId === 'profile') { loadTransactions(); loadMyArticles(); }
     if (screenId === 'admin') loadAdminTab('payments', document.querySelector('.tab-btn'));
 };
-
-// ПРОФИЛЬ (НОВЫЙ ДИЗАЙН)
-async function renderProfile() {
-    const container = document.getElementById('profileContent');
-    const isPaid = state.user.is_paid || state.user.role === 'admin';
-    
-    let bannerStyle = state.user.banner_url ? `background-image: url('${state.user.banner_url}');` : `background: linear-gradient(135deg, #a78bfa, #3b82f6);`;
-    let avatarHtml = state.user.avatar_url ? `<img src="${state.user.avatar_url}">` : (state.user.display_name || 'U')[0].toUpperCase();
-
-    container.innerHTML = `
-        <div class="profile-card">
-            <div class="profile-banner-bg" style="${bannerStyle}"></div>
-            <div class="profile-avatar-wrap">${avatarHtml}</div>
-            <div class="profile-info-wrap">
-                <h2>${state.user.display_name}</h2>
-                <p>@${state.user.username || 'unknown'}</p>
-                <div class="profile-status-badge" style="background: ${isPaid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${isPaid ? 'var(--grn)' : 'var(--red)'};">
-                    ${isPaid ? '✅ Доступ открыт' : '🔒 Требуется подписка'}
-                </div>
-            </div>
-        </div>
-    `;
-}
 
 window.openQuickAction = () => { if (state.user.role === 'admin') { openArticleModal(); } else { showPaywall(); } };
 window.closeModal = (id) => document.getElementById(id).classList.remove('active');
@@ -398,9 +374,11 @@ window.saveCategory = async () => {
     if(!name) return showToast('Введите название', 'error');
     try {
         const res = await fetch(`${API_URL}/api/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
-        if(!res.ok) throw new Error();
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error || 'Ошибка');
+        
         closeModal('catModal'); showToast('Категория добавлена', 'success'); await loadData();
-    } catch(e) { showToast('Ошибка или категория уже есть', 'error'); }
+    } catch(e) { showToast(e.message, 'error'); }
 };
 
 window.openArticleModal = (isEdit = false) => {
@@ -498,6 +476,23 @@ window.calcP2P = () => {
     const buy = parseFloat(document.getElementById('calcBuy').value) || 0; const sell = parseFloat(document.getElementById('calcSell').value) || 0;
     const amount = parseFloat(document.getElementById('calcAmount').value) || 0; const buyFee = parseFloat(document.getElementById('calcBuyFee').value) || 0; const sellFee = parseFloat(document.getElementById('calcSellFee').value) || 0;
     const resSpread = document.getElementById('resSpread'); const resProfit = document.getElementById('resProfit');
+    if(!buy || !sell || !amount) { resSpread.textContent = '0 ₽ (0%)'; resProfit.textContent = '0 ₽'; return; }
+    const usdtGross = amount / buy; const usdtNet = usdtGross * (1 - (buyFee / 100));
+    const rubGross = usdtNet * sell; const rubNet = rubGross * (1 - (sellFee / 100));
+    const profit = rubNet - amount; const spreadPct = ((sell - buy) / buy) * 100;
+    resSpread.textContent = `${(sell - buy).toFixed(2)} ₽ (${spreadPct.toFixed(2)}%)`;
+    resProfit.textContent = `${profit.toFixed(2)} ₽`;
+    resProfit.style.color = profit >= 0 ? 'var(--grn)' : 'var(--red)';
+    window._lastCalculatedProfit = profit;
+};
+
+window.resetCalc = () => { ['calcBuy','calcSell','calcAmount','calcBuyFee','calcSellFee'].forEach(id=>document.getElementById(id).value=''); calcP2P(); };
+window.saveCalc = async () => {
+    if (!window._lastCalculatedProfit || window._lastCalculatedProfit <= 0) return showToast('Нет прибыли для сохранения', 'error');
+    await fetch(`${API_URL}/api/transactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: state.user.id, type: 'income', amount: window._lastCalculatedProfit, description: 'P2P Сделка (Калькулятор)' }) });
+    await addToBalance(window._lastCalculatedProfit);
+    showToast('Профит добавлен в статистику!', 'success'); window._lastCalculatedProfit = 0; resetCalc();
+};Profit');
     if(!buy || !sell || !amount) { resSpread.textContent = '0 ₽ (0%)'; resProfit.textContent = '0 ₽'; return; }
     const usdtGross = amount / buy; const usdtNet = usdtGross * (1 - (buyFee / 100));
     const rubGross = usdtNet * sell; const rubNet = rubGross * (1 - (sellFee / 100));
